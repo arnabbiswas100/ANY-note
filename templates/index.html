@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ANY-Note</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dark">
+
+<div class="layout">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h2>Folders</h2>
+
+        <div class="folder grey {% if active_folder == 0 %}active{% endif %}"
+             onclick="window.location='/?folder=0'">
+            📌 All Notes
+        </div>
+
+        <form action="/new_folder" method="POST" class="folder-form">
+            <input name="name" placeholder="New folder..." required>
+            <button type="submit">+</button>
+        </form>
+
+        {% for folder in folders %}
+        <div class="folder note-{{ folder.color }}"
+             ondragover="allowDrop(event)"
+             ondragleave="this.classList.remove('drag-hover')"
+             ondrop="dropNote(event, {{ folder.id }})"
+             oncontextmenu="openMenu(event, {{ folder.id }})"
+             onclick="window.location='/?folder={{ folder.id }}'">
+            {{ folder.name }}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+
+        <!-- Header -->
+        <div class="app-header">
+            <img src="/static/logo.png" class="logo">
+            <div class="app-title">ANY-Note</div>
+        </div>
+
+        <!-- Topbar -->
+        <div class="topbar">
+            <input id="search" placeholder="Search notes..." onkeyup="filterNotes()">
+            <div class="theme-toggle" onclick="toggleTheme()">🌙</div>
+        </div>
+
+        <!-- Editor -->
+        <form method="POST" class="editor" onsubmit="submitNote()">
+            <input class="title-input" name="title" placeholder="Title...">
+
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <button type="button" class="tool-btn" data-cmd="bold"><b>B</b></button>
+                <button type="button" class="tool-btn" data-cmd="italic"><i>I</i></button>
+                <button type="button" class="tool-btn" data-cmd="underline"><u>U</u></button>
+                <button type="button" class="tool-btn" data-cmd="insertUnorderedList">☰</button>
+                <button type="button" class="tool-btn" data-cmd="insertOrderedList">1.</button>
+                <button type="button" class="tool-btn highlight-btn">🖍</button>
+            </div>
+
+            <div class="note-input" contenteditable="true" id="noteBox"></div>
+            <input type="hidden" name="note" id="hiddenNote">
+            <input type="hidden" name="color" id="hiddenColor">
+
+            <div class="color-picker">
+                <span data-color="blue" onclick="pickColor(this)"></span>
+                <span data-color="warm" onclick="pickColor(this)"></span>
+                <span data-color="peach" onclick="pickColor(this)"></span>
+                <span data-color="pink" onclick="pickColor(this)"></span>
+                <span data-color="green" onclick="pickColor(this)"></span>
+                <span data-color="purple" onclick="pickColor(this)"></span>
+                <span data-color="grey" onclick="pickColor(this)"></span>
+            </div>
+
+            <button type="submit" class="add-btn">Add Note</button>
+        </form>
+
+        <!-- Notes -->
+        <div class="grid" id="notes">
+            {% for note in notes %}
+            <div class="note-card note-{{ note.color }} {% if note.pinned %}pinned{% endif %}"
+                 draggable="true"
+                 onclick="openNote(this, {{ note.id }})"
+                 ondragstart="dragNote(event, {{ note.id }})">
+
+                <div class="note-actions">
+                    <span class="icon pin"
+                          onclick="event.stopPropagation(); togglePin(this, {{ note.id }})">📌</span>
+                    <span class="icon edit"
+                          onclick="event.stopPropagation(); window.location='/edit/{{ note.id }}'">✏</span>
+                    <span class="icon delete"
+                          onclick="event.stopPropagation(); confirmDelete({{ note.id }})">🗑</span>
+                </div>
+
+                {% if note.title %}
+                <div class="note-title">{{ note.title }}</div>
+                {% endif %}
+
+                <div class="note-content">
+                    {{ note.content | safe }}
+                </div>
+
+                <div class="timestamp">
+                    Edited {{ note.updated_at[:19].replace("T", " ") }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Floating Modal -->
+<div id="overlay" class="overlay" onclick="closeNote()">
+    <div class="floating-note" onclick="event.stopPropagation()">
+
+        <div class="floating-header">
+            <div id="floating-title" class="floating-title"></div>
+
+            <div class="floating-actions">
+                <span id="float-pin" class="icon pin">📌</span>
+                <span id="float-edit" class="icon edit">✏</span>
+                <span id="float-delete" class="icon delete">🗑</span>
+            </div>
+        </div>
+
+        <div id="floating-content" class="floating-content"></div>
+        <div id="floating-time" class="timestamp"></div>
+    </div>
+</div>
+
+<script>
+let draggedNote = null;
+let selectedColor = "grey";
+
+/* ---------------- Live Color Preview ---------------- */
+function pickColor(el) {
+    selectedColor = el.dataset.color;
+    document.getElementById("hiddenColor").value = selectedColor;
+
+    document.querySelectorAll(".color-picker span").forEach(s => {
+        s.classList.remove("active");
+    });
+    el.classList.add("active");
+
+    const box = document.getElementById("noteBox");
+    box.className = "note-input note-" + selectedColor;
+}
+
+/* ---------------- Notes ---------------- */
+function submitNote() {
+    document.getElementById("hiddenNote").value =
+        document.getElementById("noteBox").innerHTML;
+}
+
+/* ---------------- Highlight ---------------- */
+function highlight() {
+    const bg = "#fff3b0";   // pastel yellow
+    const fg = "#000000";  // black text
+
+    document.execCommand("styleWithCSS", false, true);
+    document.execCommand("backColor", false, bg);
+    document.execCommand("foreColor", false, fg);
+}
+
+/* ---------------- Pin ---------------- */
+function togglePin(icon, id) {
+    const card = icon.closest(".note-card");
+    fetch(`/pin/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            card.classList.toggle("pinned", data.pinned === 1);
+        });
+}
+
+/* ---------------- Drag ---------------- */
+function dragNote(e, id) {
+    draggedNote = id;
+    e.dataTransfer.effectAllowed = "move";
+}
+
+function allowDrop(e) {
+    e.preventDefault();
+    e.target.classList.add("drag-hover");
+}
+
+function dropNote(e, folderId) {
+    e.preventDefault();
+    e.target.classList.remove("drag-hover");
+
+    fetch(`/move_note/${draggedNote}/${folderId}`)
+        .then(() => {
+            document.querySelector(`[draggable][onclick*="${draggedNote}"]`)
+                ?.classList.add("fade-out");
+            setTimeout(() => location.reload(), 250);
+        });
+}
+
+/* ---------------- Floating ---------------- */
+function openNote(card, id) {
+    const overlay = document.getElementById("overlay");
+    const floating = document.querySelector(".floating-note");
+
+    floating.className = "floating-note";
+    card.classList.forEach(cls => {
+        if (cls.startsWith("note-")) floating.classList.add(cls);
+    });
+
+    document.getElementById("floating-title").innerText =
+        card.querySelector(".note-title")?.innerText || "Untitled";
+
+    document.getElementById("floating-content").innerHTML =
+        card.querySelector(".note-content").innerHTML;
+
+    document.getElementById("floating-time").innerText =
+        card.querySelector(".timestamp").innerText;
+
+    document.getElementById("float-edit").onclick =
+        () => window.location = "/edit/" + id;
+
+    document.getElementById("float-delete").onclick =
+        () => confirmDelete(id);
+
+    document.getElementById("float-pin").onclick =
+        () => togglePin(card.querySelector(".pin"), id);
+
+    overlay.classList.add("show");
+}
+
+function closeNote() {
+    document.getElementById("overlay").classList.remove("show");
+}
+
+/* ---------------- Search ---------------- */
+function filterNotes() {
+    let q = document.getElementById("search").value.toLowerCase();
+    document.querySelectorAll(".note-card").forEach(n => {
+        n.style.display = n.innerText.toLowerCase().includes(q)
+            ? "block"
+            : "none";
+    });
+}
+
+/* ---------------- Delete ---------------- */
+function confirmDelete(id) {
+    if (confirm("Delete this note?")) {
+        window.location = "/delete/" + id;
+    }
+}
+
+/* ---------------- Theme ---------------- */
+function toggleTheme() {
+    const body = document.body;
+    const icon = document.querySelector(".theme-toggle");
+
+    if (body.classList.contains("dark")) {
+        body.classList.replace("dark", "light");
+        icon.innerText = "☀";
+        localStorage.setItem("theme", "light");
+    } else {
+        body.classList.replace("light", "dark");
+        icon.innerText = "🌙";
+        localStorage.setItem("theme", "dark");
+    }
+}
+
+window.onload = () => {
+    const theme = localStorage.getItem("theme") || "dark";
+    document.body.className = theme;
+};
+
+/* ---------------- Toolbar Active States ---------------- */
+
+document.querySelectorAll(".tool-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const cmd = btn.dataset.cmd;
+        if (cmd) document.execCommand(cmd);
+        updateToolbarStates();
+    });
+});
+
+document.querySelector(".highlight-btn").addEventListener("click", () => {
+    highlight();
+    updateToolbarStates();
+});
+
+function updateToolbarStates() {
+    toggleState("bold");
+    toggleState("italic");
+    toggleState("underline");
+    toggleState("insertUnorderedList");
+    toggleState("insertOrderedList");
+}
+
+function toggleState(cmd) {
+    const isActive = document.queryCommandState(cmd);
+    document.querySelectorAll(`.tool-btn[data-cmd="${cmd}"]`)
+        .forEach(btn => btn.classList.toggle("active", isActive));
+}
+</script>
+
+</body>
+</html>

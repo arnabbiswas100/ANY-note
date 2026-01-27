@@ -1,0 +1,833 @@
+/* ============================= */
+/* 🌗 THEME VARIABLES (NORD) */
+/* ============================= */
+
+body.dark {
+    --bg: #1e222a;
+    --panel: #2a2f3a;
+    --card: #313743;
+    --soft: #3b4252;
+    --accent: #88c0d0;
+    --text: #eceff4;
+    --muted: #aeb7c2;
+    --danger: #bf616a;
+}
+
+body.light {
+    --bg: #eceff4;
+    --panel: #e5e9f0;
+    --card: #ffffff;
+    --soft: #d8dee9;
+    --accent: #5e81ac;
+    --text: #2e3440;
+    --muted: #4c566a;
+    --danger: #bf616a;
+}
+
+/* ============================= */
+/* BASE */
+/* ============================= */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--text);
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.layout {
+    display: flex;
+    height: 100vh;
+}
+
+/* ============================= */
+/* SIDEBAR */
+/* ============================= */
+
+.sidebar {
+    width: 260px;
+    background: var(--panel);
+    padding: 20px;
+    box-shadow: 2px 0 20px rgba(0,0,0,0.35);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar h2 {
+    margin: 0 0 12px 0;
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.folder-form {
+    display: flex;
+    margin-bottom: 14px;
+}
+
+.folder-form input {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: none;
+    background: var(--soft);
+    color: var(--text);
+    outline: none;
+}
+
+.folder-form button {
+    margin-left: 8px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: none;
+    background: var(--accent);
+    color: black;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.folder-form button:hover {
+    transform: scale(1.05);
+}
+
+.folder {
+    padding: 12px 14px;
+    border-radius: 16px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: background 0.15s ease, transform 0.15s ease;
+    background: var(--soft);
+}
+
+.folder:hover {
+    transform: translateX(4px);
+    filter: brightness(1.1);
+}
+
+.folder.active {
+    outline: 2px solid var(--accent);
+}
+
+/* Drag highlight */
+.folder.drag-hover {
+    outline: 2px dashed var(--accent);
+    animation: pulse 0.6s infinite alternate;
+}
+
+/* ============================= */
+/* MAIN */
+/* ============================= */
+
+.main {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+/* ============================= */
+/* TOP BAR */
+/* ============================= */
+
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.topbar input {
+    flex: 1;
+    padding: 12px 16px;
+    border-radius: 18px;
+    border: none;
+    background: var(--soft);
+    color: var(--text);
+    outline: none;
+}
+
+/* Theme toggle */
+.theme-toggle {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+}
+
+/* ============================= */
+/* EDITOR */
+/* ============================= */
+
+.editor {
+    background: var(--panel);
+    padding: 18px;
+    border-radius: 24px;
+    margin-bottom: 26px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+}
+
+/* Title input */
+.title-input {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    border: none;
+    outline: none;
+    margin-bottom: 12px;
+    font-size: 1.05em;
+    font-weight: 600;
+    background: var(--soft);
+    color: var(--text);
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.title-input::placeholder {
+    color: var(--muted);
+}
+
+.title-input:focus {
+    background: var(--card);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Toolbar */
+.toolbar {
+    margin-bottom: 10px;
+}
+
+.toolbar button {
+    margin-right: 6px;
+    border-radius: 12px;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    background: var(--soft);
+    color: var(--text);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.toolbar button:hover {
+    background: var(--accent);
+    color: black;
+    transform: scale(1.05);
+}
+
+.tool-btn.active {
+    background: var(--accent);
+    color: black;
+    box-shadow: 0 0 0 2px rgba(136, 192, 208, 0.4);
+}
+
+/* Note input */
+.note-input {
+    background: var(--card);
+    min-height: 110px;
+    padding: 14px;
+    border-radius: 18px;
+    outline: none;
+}
+
+/* Placeholder for contenteditable */
+.note-input:empty::before {
+    content: "Start writing...";
+    color: var(--muted);
+    pointer-events: none;
+}
+
+/* Add button */
+.add-btn {
+    margin-top: 14px;
+    padding: 12px 18px;
+    border-radius: 18px;
+    border: none;
+    background: var(--accent);
+    color: black;
+    cursor: pointer;
+    font-weight: bold;
+    transition: transform 0.15s ease;
+}
+
+.add-btn:hover {
+    transform: scale(1.05);
+}
+
+/* ============================= */
+/* COLOR PICKER */
+/* ============================= */
+
+.color-picker {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.color-picker span {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.15),
+    0 4px 10px rgba(0,0,0,0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.color-picker span:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 2px var(--accent),
+    0 6px 14px rgba(0,0,0,0.6);
+}
+
+.color-picker span.active {
+    border-color: var(--accent);
+}
+
+/* Half Light / Half Dark */
+.color-picker span::before,
+.color-picker span::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+}
+
+.color-picker span::before { left: 0; }
+.color-picker span::after { right: 0; }
+
+/* Blue */
+.color-picker span[data-color="blue"]::before { background: #f2f7fb; }
+.color-picker span[data-color="blue"]::after { background: #2f3a44; }
+
+/* Warm */
+.color-picker span[data-color="warm"]::before { background: #f9f7f2; }
+.color-picker span[data-color="warm"]::after { background: #3a372f; }
+
+/* Peach */
+.color-picker span[data-color="peach"]::before { background: #fff4ee; }
+.color-picker span[data-color="peach"]::after { background: #3a2f2a; }
+
+/* Pink */
+.color-picker span[data-color="pink"]::before { background: #fff2f7; }
+.color-picker span[data-color="pink"]::after { background: #3a2a33; }
+
+/* Green */
+.color-picker span[data-color="green"]::before { background: #f2fbf5; }
+.color-picker span[data-color="green"]::after { background: #2a3a32; }
+
+/* Purple */
+.color-picker span[data-color="purple"]::before { background: #f6f2fb; }
+.color-picker span[data-color="purple"]::after { background: #2f2a3a; }
+
+/* Grey */
+.color-picker span[data-color="grey"]::before { background: #f4f5f7; }
+.color-picker span[data-color="grey"]::after { background: #2f3138; }
+
+/* ============================= */
+/* NOTES GRID */
+/* ============================= */
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+/* Ensure highlighted + formatted text wraps inside cards */
+.note-card,
+.note-content,
+.floating-content {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+}
+
+/* Force highlighted spans to behave like normal text */
+.note-content span,
+.floating-content span {
+    display: inline;
+    max-width: 100%;
+    white-space: normal;
+}
+
+.note-card {
+    padding: 16px;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+    position: relative;
+    background: var(--card);
+}
+
+/* Hover */
+.note-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+}
+
+/* Pinned */
+.note-card.pinned {
+    outline: 2px solid var(--accent);
+    animation: pop 0.3s ease;
+}
+
+/* Title */
+.note-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    font-size: 1.05em;
+}
+
+/* Content */
+.note-content {
+    line-height: 1.55;
+}
+
+/* Timestamp */
+.timestamp {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+/* Icons */
+.note-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 8px;
+}
+
+.icon {
+    cursor: pointer;
+    font-size: 14px;
+    background: var(--soft);
+    padding: 7px;
+    border-radius: 50%;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.icon:hover {
+    background: var(--accent);
+    color: black;
+    transform: scale(1.1);
+}
+
+.icon.delete:hover {
+    background: var(--danger);
+    color: white;
+}
+
+/* ============================= */
+/* FLOATING MODAL */
+/* ============================= */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 3000;
+}
+
+.overlay.show {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.floating-note {
+    background: var(--card);
+    width: 92%;
+    max-width: 720px;
+    max-height: 80vh;
+    padding: 28px;
+    border-radius: 32px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
+    overflow: hidden;
+    position: relative;
+}
+
+.overlay.show .floating-note {
+    transform: scale(1) translateY(0);
+}
+
+.floating-actions {
+    position: sticky;
+    top: 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    z-index: 10;
+
+    /* Remove glass/halo effect */
+    background: none;
+    backdrop-filter: none;
+}
+
+
+.floating-content {
+    font-size: 1.05em;
+    line-height: 1.6;
+}
+
+/* Floating Header */
+.floating-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.floating-title {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: var(--text);
+    max-width: 75%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* Make sure actions stay clean */
+.floating-actions {
+    display: flex;
+    gap: 10px;
+}
+
+
+/* Floating color sync */
+.floating-note.note-blue { background: #f2f7fb; }
+body.dark .floating-note.note-blue { background: #2f3a44; }
+
+.floating-note.note-warm { background: #f9f7f2; }
+body.dark .floating-note.note-warm { background: #3a372f; }
+
+.floating-note.note-peach { background: #fff4ee; }
+body.dark .floating-note.note-peach { background: #3a2f2a; }
+
+.floating-note.note-pink { background: #fff2f7; }
+body.dark .floating-note.note-pink { background: #3a2a33; }
+
+.floating-note.note-green { background: #f2fbf5; }
+body.dark .floating-note.note-green { background: #2a3a32; }
+
+.floating-note.note-purple { background: #f6f2fb; }
+body.dark .floating-note.note-purple { background: #2f2a3a; }
+
+.floating-note.note-grey { background: #f4f5f7; }
+body.dark .floating-note.note-grey { background: #2f3138; }
+
+/* ============================= */
+/* CONTEXT MENU */
+/* ============================= */
+
+.menu {
+    position: absolute;
+    display: none;
+    background: var(--panel);
+    padding: 14px;
+    border-radius: 18px;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+    z-index: 2000;
+}
+
+.menu input {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: none;
+    background: var(--soft);
+    color: var(--text);
+    outline: none;
+}
+
+.menu button {
+    width: 100%;
+    border-radius: 12px;
+    border: none;
+    padding: 8px;
+    background: var(--accent);
+    color: black;
+    cursor: pointer;
+}
+
+/* ============================= */
+/* ANIMATIONS */
+/* ============================= */
+
+@keyframes pop {
+    0% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+
+@keyframes pulse {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+}
+
+/* ============================= */
+/* NOTE COLORS */
+/* ============================= */
+
+.note-blue { background: #f2f7fb; }
+body.dark .note-blue { background: #2f3a44; }
+
+.note-warm { background: #f9f7f2; }
+body.dark .note-warm { background: #3a372f; }
+
+.note-peach { background: #fff4ee; }
+body.dark .note-peach { background: #3a2f2a; }
+
+.note-pink { background: #fff2f7; }
+body.dark .note-pink { background: #3a2a33; }
+
+.note-green { background: #f2fbf5; }
+body.dark .note-green { background: #2a3a32; }
+
+.note-purple { background: #f6f2fb; }
+body.dark .note-purple { background: #2f2a3a; }
+
+.note-grey { background: #f4f5f7; }
+body.dark .note-grey { background: #2f3138; }
+
+
+/* ============================= */
+/* APP HEADER */
+/* ============================= */
+
+.app-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.app-title {
+    font-size: 1.6em;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.logo {
+    width: 36px;
+    height: 36px;
+}
+
+/* ============================= */
+/* FOLDER PLUS BUTTON FIX */
+/* ============================= */
+
+.folder-form button {
+    min-width: 42px;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ============================= */
+/* ANIMATIONS */
+/* ============================= */
+
+.fade-out {
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.25s ease;
+}
+
+
+/* ---------------- Folder Form Layout Fix ---------------- */
+
+.folder-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.folder-form input {
+    flex: 1;
+    min-width: 0;
+}
+
+.folder-form button {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/* ---------------- Folder Contrast (Dark Mode) ---------------- */
+
+body.dark .folder {
+    background: #343a46;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04),
+    0 4px 10px rgba(0,0,0,0.4);
+}
+
+body.dark .folder:hover {
+    background: #3b4252;
+}
+
+
+/* ============================= */
+/* GLOBAL ELEVATION SYSTEM */
+/* ============================= */
+
+:root {
+    --shadow-soft: 0 6px 16px rgba(0,0,0,0.12);
+    --shadow-medium: 0 10px 25px rgba(0,0,0,0.18);
+    --shadow-strong: 0 20px 40px rgba(0,0,0,0.25);
+}
+
+body.dark {
+    --shadow-soft: 0 6px 18px rgba(0,0,0,0.4);
+    --shadow-medium: 0 10px 30px rgba(0,0,0,0.55);
+    --shadow-strong: 0 20px 50px rgba(0,0,0,0.7);
+}
+
+/* ============================= */
+/* SIDEBAR CARD CONSISTENCY */
+/* ============================= */
+
+.folder {
+    box-shadow: var(--shadow-soft);
+}
+
+.folder:hover {
+    box-shadow: var(--shadow-medium);
+}
+
+/* Active folder gets stronger elevation */
+.folder.active {
+    box-shadow: var(--shadow-strong);
+}
+
+/* ============================= */
+/* FOLDER FORM SPACING FIX */
+/* ============================= */
+
+.folder-form {
+    display: flex;
+    gap: 12px;
+    margin-top: 14px;
+    margin-bottom: 14px;
+}
+
+/* New folder input elevation */
+.folder-form input {
+    box-shadow: var(--shadow-soft);
+}
+
+/* + Button elevation */
+.folder-form button {
+    box-shadow: var(--shadow-soft);
+}
+
+.folder-form button:hover {
+    box-shadow: var(--shadow-medium);
+}
+
+/* ============================= */
+/* SEARCH BAR ELEVATION */
+/* ============================= */
+
+.topbar input {
+    box-shadow: var(--shadow-soft);
+}
+
+.topbar input:focus {
+    box-shadow: var(--shadow-medium);
+}
+
+/* ============================= */
+/* EDITOR CARD CONSISTENCY */
+/* ============================= */
+
+.editor {
+    box-shadow: var(--shadow-strong);
+}
+
+/* ============================= */
+/* NOTE CARD CONSISTENCY */
+/* ============================= */
+
+.note-card {
+    box-shadow: var(--shadow-soft);
+}
+
+.note-card:hover {
+    box-shadow: var(--shadow-medium);
+}
+
+/* ============================= */
+/* LIGHT MODE FOLDER SHADOW FIX */
+/* ============================= */
+
+body.light .folder {
+    box-shadow: var(--shadow-soft);
+}
+
+body.light .folder:hover {
+    box-shadow: var(--shadow-medium);
+}
+
+/* ============================= */
+/* PLUS BUTTON ALIGNMENT */
+/* ============================= */
+
+.folder-form button {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ============================= */
+/* CARD SPACING NORMALIZATION */
+/* ============================= */
+
+.sidebar > * {
+    margin-bottom: 14px;
+}
+
+.sidebar > *:last-child {
+    margin-bottom: 0;
+}
+

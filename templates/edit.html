@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Note</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="main">
+
+    <form method="POST" class="editor" onsubmit="submitNote()">
+
+        <input class="title-input"
+               name="title"
+               value="{{ note.title }}"
+               placeholder="Title...">
+
+        <div class="toolbar">
+            <button type="button" onclick="cmd('bold')"><b>B</b></button>
+            <button type="button" onclick="cmd('italic')"><i>I</i></button>
+            <button type="button" onclick="cmd('underline')"><u>U</u></button>
+            <button type="button" onclick="cmd('insertUnorderedList')">•</button>
+            <button type="button" onclick="cmd('insertOrderedList')">1.</button>
+            <button type="button" onclick="highlight()">HL</button>
+        </div>
+
+        <div class="note-input note-{{ note.color }}"
+             contenteditable="true"
+             id="noteBox">{{ note.content | safe }}</div>
+
+        <input type="hidden" name="note" id="hiddenNote">
+        <input type="hidden" name="color" id="hiddenColor" value="{{ note.color }}">
+
+        <div class="color-picker">
+            <span data-color="blue" onclick="pickColor(this)"></span>
+            <span data-color="warm" onclick="pickColor(this)"></span>
+            <span data-color="peach" onclick="pickColor(this)"></span>
+            <span data-color="pink" onclick="pickColor(this)"></span>
+            <span data-color="green" onclick="pickColor(this)"></span>
+            <span data-color="purple" onclick="pickColor(this)"></span>
+            <span data-color="grey" onclick="pickColor(this)"></span>
+        </div>
+
+        <button class="add-btn">Save Changes</button>
+    </form>
+</div>
+
+<script>
+let selectedColor = "{{ note.color }}";
+
+document.body.className =
+    localStorage.getItem("theme") || "dark";
+
+document.querySelectorAll(".color-picker span").forEach(span => {
+    if (span.dataset.color === selectedColor)
+        span.classList.add("active");
+});
+
+function submitNote() {
+    document.getElementById("hiddenNote").value =
+        document.getElementById("noteBox").innerHTML;
+    document.getElementById("hiddenColor").value = selectedColor;
+}
+
+function cmd(command) {
+    document.execCommand(command);
+}
+
+function highlight() {
+    document.execCommand("backColor", false, "yellow");
+}
+
+function pickColor(el) {
+    selectedColor = el.dataset.color;
+
+    document.querySelectorAll(".color-picker span")
+        .forEach(s => s.classList.remove("active"));
+
+    el.classList.add("active");
+
+    const box = document.getElementById("noteBox");
+    box.className = "note-input note-" + selectedColor;
+}
+</script>
+
+</body>
+</html>
