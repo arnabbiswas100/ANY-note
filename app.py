@@ -1,14 +1,19 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 import sqlite3
 from datetime import datetime
 import os
 import hashlib
 import random
 
+# ------------------------
+# App Setup
+# ------------------------
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret")
 
-DB_NAME = "notes.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, "notes.db")
 
 COLORS = ["blue", "warm", "peach", "pink", "green", "purple", "grey"]
 
@@ -32,7 +37,7 @@ def init_db():
         )
     """)
 
-    # Notes table
+    # Notes table (new schema)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,18 +45,21 @@ def init_db():
             title TEXT NOT NULL,
             content TEXT NOT NULL,
             color TEXT NOT NULL,
-            folder TEXT NOT NULL,
+            folder TEXT DEFAULT 'My Folder',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
 
-    db.commit()
-    db.close()
+    # ---- MIGRATION FIX ----
+    # Add folder column if old DB doesn't have it
+    try:
+        cur.execute("SELECT folder FROM notes LIMIT 1")
+    except:
+        cur.execute("ALTER TABLE notes ADD COLUMN folder TEXT DEFAULT 'My Folder'")
 
-# IMPORTANT — RUN DB INIT ON GUNICORN / RAILWAY
-init_db()
+    db.commit()
 
 # ------------------------
 # Helpers
@@ -73,8 +81,12 @@ def random_color():
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        if not username or not password:
+            flash("Username and password required")
+            return redirect(url_for("signup"))
 
         db = get_db()
         cur = db.cursor()
@@ -85,9 +97,11 @@ def signup():
                 (username, hash_password(password))
             )
             db.commit()
-        except sqlite3.IntegrityError:
-            return render_template("login.html", signup=True, error="Username already exists")
+        except:
+            flash("Username already exists")
+            return redirect(url_for("signup"))
 
+        flash("Account created. Please log in.")
         return redirect(url_for("login"))
 
     return render_template("login.html", signup=True)
@@ -95,8 +109,8 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+        username = request.form.get("username")
+        password = request.form.get("password")
 
         db = get_db()
         cur = db.cursor()
@@ -112,7 +126,8 @@ def login():
             session["username"] = username
             return redirect(url_for("index"))
 
-        return render_template("login.html", signup=False, error="Invalid username or password")
+        flash("Invalid username or password")
+        return redirect(url_for("login"))
 
     return render_template("login.html", signup=False)
 
@@ -148,9 +163,14 @@ def add_note():
     if not logged_in():
         return redirect(url_for("login"))
 
-    title = request.form["title"]
-    content = request.form["content"]
+    title = request.form.get("title")
+    content = request.form.get("content")
     folder = request.form.get("folder", "My Folder")
+
+    if not title or not content:
+        flash("Title and content required")
+        return redirect(url_for("index"))
+
     color = random_color()
     now = datetime.utcnow().isoformat()
 
@@ -196,6 +216,10 @@ def edit(note_id):
     """, (note_id, session["user_id"]))
 
     note = cur.fetchone()
+
+    if not note:
+        return redirect(url_for("index"))
+
     return render_template("edit.html", note=note)
 
 @app.route("/update/<int:note_id>", methods=["POST"])
@@ -203,9 +227,10 @@ def update(note_id):
     if not logged_in():
         return redirect(url_for("login"))
 
-    title = request.form["title"]
-    content = request.form["content"]
+    title = request.form.get("title")
+    content = request.form.get("content")
     folder = request.form.get("folder", "My Folder")
+
     now = datetime.utcnow().isoformat()
 
     db = get_db()
@@ -221,8 +246,11 @@ def update(note_id):
     return redirect(url_for("index"))
 
 # ------------------------
-# Start (Local only)
+# Startup
 # ------------------------
 
+init_db()
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
