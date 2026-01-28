@@ -1,4 +1,6 @@
-flask
-gunicorn
-psycopg2-binary
-werkzeug
+Flask==3.1.2
+Flask-Login==0.6.3
+gunicorn==24.1.1
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.11
+Werkzeug==3.1.5
