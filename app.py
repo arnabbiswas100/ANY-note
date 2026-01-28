@@ -1,191 +1,347 @@
-from flask import Flask, render_template, request, redirect, jsonify
-import sqlite3
+import os
 from datetime import datetime
-import random
+
+from flask import Flask, render_template, request, redirect, jsonify, session, url_for
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+
+# ---------------- App Setup ----------------
 
 app = Flask(__name__)
-DB_NAME = "notes.db"
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
 
-COLORS = ["blue", "warm", "peach", "pink", "green", "purple", "grey"]
+# ---------------- Database Setup ----------------
 
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# ------------------------
-# Database Helpers
-# ------------------------
+if DATABASE_URL:
+    # Railway Postgres fix
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+else:
+    DATABASE_URL = "sqlite:///notes.db"
 
-def get_db():
-    db = sqlite3.connect(DB_NAME)
-    db.row_factory = sqlite3.Row
-    return db
+engine = create_engine(DATABASE_URL, echo=False)
+SessionLocal = sessionmaker(bind=engine)
 
+# ---------------- Login Manager ----------------
+
+login_manager = LoginManager()
+login_manager.login_view = "login"
+login_manager.init_app(app)
+
+# ---------------- Models ----------------
+
+class User(UserMixin):
+    def __init__(self, id, username, password):
+        self.id = id
+        self.username = username
+        self.password = password
+
+# ---------------- Database Init ----------------
 
 def init_db():
-    with get_db() as db:
-        db.execute("""
+    with engine.begin() as conn:
+        conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+        """))
+
+        conn.execute(text("""
         CREATE TABLE IF NOT EXISTS folders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            color TEXT DEFAULT 'grey'
+            color TEXT DEFAULT 'grey',
+            user_id INTEGER NOT NULL
         )
-        """)
+        """))
 
-        db.execute("""
+        conn.execute(text("""
         CREATE TABLE IF NOT EXISTS notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            folder_id INTEGER,
             title TEXT,
-            content TEXT NOT NULL,
-            pinned INTEGER DEFAULT 0,
+            content TEXT,
             color TEXT DEFAULT 'grey',
-            updated_at TEXT
+            pinned INTEGER DEFAULT 0,
+            folder_id INTEGER DEFAULT 0,
+            user_id INTEGER NOT NULL,
+            updated_at TEXT NOT NULL
         )
-        """)
+        """))
 
-        db.execute("""
-        INSERT OR IGNORE INTO folders (id, name, color)
-        VALUES (1, 'My Notes', 'grey')
-        """)
+# ---------------- Login Loader ----------------
 
+@login_manager.user_loader
+def load_user(user_id):
+    db = SessionLocal()
+    user = db.execute(
+        text("SELECT * FROM users WHERE id = :id"),
+        {"id": user_id}
+    ).fetchone()
+    db.close()
 
-# ------------------------
-# Routes
-# ------------------------
+    if user:
+        return User(user.id, user.username, user.password)
+    return None
 
-@app.route("/", methods=["GET", "POST"])
+# ---------------- Auth Routes ----------------
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = generate_password_hash(request.form["password"])
+
+        db = SessionLocal()
+        try:
+            db.execute(
+                text("INSERT INTO users (username, password) VALUES (:u, :p)"),
+                {"u": username, "p": password}
+            )
+            db.commit()
+        except:
+            db.close()
+            return "Username already exists"
+
+        db.close()
+        return redirect("/login")
+
+    return """
+    <h2>Signup</h2>
+    <form method="POST">
+        <input name="username" placeholder="Username" required><br>
+        <input name="password" type="password" placeholder="Password" required><br>
+        <button>Create Account</button>
+    </form>
+    """
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        db = SessionLocal()
+        user = db.execute(
+            text("SELECT * FROM users WHERE username = :u"),
+            {"u": username}
+        ).fetchone()
+        db.close()
+
+        if user and check_password_hash(user.password, password):
+            login_user(User(user.id, user.username, user.password))
+            return redirect("/")
+        return "Invalid login"
+
+    return """
+    <h2>Login</h2>
+    <form method="POST">
+        <input name="username" placeholder="Username" required><br>
+        <input name="password" type="password" placeholder="Password" required><br>
+        <button>Login</button>
+    </form>
+    """
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect("/login")
+
+# ---------------- Main App ----------------
+
+@app.route("/")
+@login_required
 def index():
-    db = get_db()
     folder_id = int(request.args.get("folder", 0))
 
-    if request.method == "POST":
-        title = request.form.get("title", "")
-        content = request.form["note"]
-        color = request.form.get("color", "grey")
+    db = SessionLocal()
 
-        save_folder = folder_id if folder_id != 0 else 1
-
-        db.execute("""
-            INSERT INTO notes (title, content, folder_id, pinned, color, updated_at)
-            VALUES (?, ?, ?, 0, ?, ?)
-        """, (title, content, save_folder, color, datetime.utcnow().isoformat()))
-        db.commit()
-
-    folders = db.execute("SELECT * FROM folders").fetchall()
+    folders = db.execute(
+        text("SELECT * FROM folders WHERE user_id = :u"),
+        {"u": current_user.id}
+    ).fetchall()
 
     if folder_id == 0:
-        notes = db.execute("""
-            SELECT * FROM notes
-            ORDER BY pinned DESC, updated_at DESC
-        """).fetchall()
+        notes = db.execute(
+            text("SELECT * FROM notes WHERE user_id = :u ORDER BY pinned DESC, updated_at DESC"),
+            {"u": current_user.id}
+        ).fetchall()
     else:
-        notes = db.execute("""
+        notes = db.execute(
+            text("""
             SELECT * FROM notes
-            WHERE folder_id=?
+            WHERE user_id = :u AND folder_id = :f
             ORDER BY pinned DESC, updated_at DESC
-        """, (folder_id,)).fetchall()
+            """),
+            {"u": current_user.id, "f": folder_id}
+        ).fetchall()
 
-    return render_template("index.html",
-                           folders=folders,
-                           notes=notes,
-                           active_folder=folder_id)
+    db.close()
 
-
-# ---------------- Folder Management ----------------
-
-@app.route("/new_folder", methods=["POST"])
-def new_folder():
-    name = request.form["name"]
-    color = random.choice(COLORS)
-
-    db = get_db()
-    db.execute("INSERT INTO folders (name, color) VALUES (?, ?)", (name, color))
-    db.commit()
-    return redirect("/")
-
-
-@app.route("/rename_folder/<int:id>", methods=["POST"])
-def rename_folder(id):
-    name = request.form["name"]
-    db = get_db()
-    db.execute("UPDATE folders SET name=? WHERE id=?", (name, id))
-    db.commit()
-    return redirect("/")
-
-
-@app.route("/color_folder/<int:id>/<color>")
-def color_folder(id, color):
-    db = get_db()
-    db.execute("UPDATE folders SET color=? WHERE id=?", (color, id))
-    db.commit()
-    return redirect("/")
-
+    return render_template(
+        "index.html",
+        notes=notes,
+        folders=folders,
+        active_folder=folder_id
+    )
 
 # ---------------- Notes ----------------
 
-@app.route("/delete/<int:id>")
-def delete(id):
-    db = get_db()
-    db.execute("DELETE FROM notes WHERE id=?", (id,))
+@app.route("/", methods=["POST"])
+@login_required
+def add_note():
+    title = request.form.get("title")
+    content = request.form.get("note")
+    color = request.form.get("color", "grey")
+
+    db = SessionLocal()
+    db.execute(
+        text("""
+        INSERT INTO notes (title, content, color, user_id, updated_at)
+        VALUES (:t, :c, :col, :u, :time)
+        """),
+        {
+            "t": title,
+            "c": content,
+            "col": color,
+            "u": current_user.id,
+            "time": datetime.now().isoformat()
+        }
+    )
     db.commit()
+    db.close()
+
     return redirect("/")
 
+# ---------------- Edit ----------------
 
 @app.route("/edit/<int:id>", methods=["GET", "POST"])
+@login_required
 def edit(id):
-    db = get_db()
+    db = SessionLocal()
 
     if request.method == "POST":
-        title = request.form.get("title", "")
-        content = request.form["note"]
-        color = request.form.get("color", "grey")
-
-        db.execute("""
+        db.execute(
+            text("""
             UPDATE notes
-            SET title=?, content=?, color=?, updated_at=?
-            WHERE id=?
-        """, (title, content, color, datetime.utcnow().isoformat(), id))
+            SET title=:t, content=:c, updated_at=:time
+            WHERE id=:id AND user_id=:u
+            """),
+            {
+                "t": request.form["title"],
+                "c": request.form["note"],
+                "time": datetime.now().isoformat(),
+                "id": id,
+                "u": current_user.id
+            }
+        )
         db.commit()
+        db.close()
         return redirect("/")
 
-    note = db.execute("SELECT * FROM notes WHERE id=?", (id,)).fetchone()
+    note = db.execute(
+        text("SELECT * FROM notes WHERE id=:id AND user_id=:u"),
+        {"id": id, "u": current_user.id}
+    ).fetchone()
+
+    db.close()
     return render_template("edit.html", note=note)
 
+# ---------------- Delete ----------------
 
-# ---------------- API (No Reload) ----------------
+@app.route("/delete/<int:id>")
+@login_required
+def delete(id):
+    db = SessionLocal()
+    db.execute(
+        text("DELETE FROM notes WHERE id=:id AND user_id=:u"),
+        {"id": id, "u": current_user.id}
+    )
+    db.commit()
+    db.close()
+    return redirect("/")
+
+# ---------------- Pin ----------------
 
 @app.route("/pin/<int:id>")
-def toggle_pin(id):
-    db = get_db()
-    note = db.execute("SELECT pinned FROM notes WHERE id=?", (id,)).fetchone()
+@login_required
+def pin(id):
+    db = SessionLocal()
 
-    new_state = 0 if note["pinned"] == 1 else 1
+    note = db.execute(
+        text("SELECT pinned FROM notes WHERE id=:id AND user_id=:u"),
+        {"id": id, "u": current_user.id}
+    ).fetchone()
 
-    db.execute("""
-        UPDATE notes
-        SET pinned=?, updated_at=?
-        WHERE id=?
-    """, (new_state, datetime.utcnow().isoformat(), id))
+    new_state = 0 if note.pinned else 1
+
+    db.execute(
+        text("""
+        UPDATE notes SET pinned=:p, updated_at=:time
+        WHERE id=:id AND user_id=:u
+        """),
+        {
+            "p": new_state,
+            "time": datetime.now().isoformat(),
+            "id": id,
+            "u": current_user.id
+        }
+    )
+
     db.commit()
-
+    db.close()
     return jsonify({"pinned": new_state})
 
+# ---------------- Folders ----------------
+
+@app.route("/new_folder", methods=["POST"])
+@login_required
+def new_folder():
+    name = request.form["name"]
+
+    db = SessionLocal()
+    db.execute(
+        text("INSERT INTO folders (name, user_id) VALUES (:n, :u)"),
+        {"n": name, "u": current_user.id}
+    )
+    db.commit()
+    db.close()
+
+    return redirect("/")
 
 @app.route("/move_note/<int:note_id>/<int:folder_id>")
+@login_required
 def move_note(note_id, folder_id):
-    db = get_db()
-    db.execute("""
-        UPDATE notes
-        SET folder_id=?, updated_at=?
-        WHERE id=?
-    """, (folder_id, datetime.utcnow().isoformat(), note_id))
-    db.commit()
-    return jsonify({"status": "ok"})
+    db = SessionLocal()
 
+    db.execute(
+        text("""
+        UPDATE notes
+        SET folder_id=:f, updated_at=:time
+        WHERE id=:n AND user_id=:u
+        """),
+        {
+            "f": folder_id,
+            "n": note_id,
+            "u": current_user.id,
+            "time": datetime.now().isoformat()
+        }
+    )
+
+    db.commit()
+    db.close()
+    return "OK"
 
 # ---------------- Start ----------------
 
-#if __name__ == "__main__":
- #   init_db()
-  #  app.run(debug=True, host="0.0.0.0")
 if __name__ == "__main__":
     init_db()
     app.run(host="0.0.0.0", port=5000)
