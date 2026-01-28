@@ -1,97 +1,61 @@
 import os
-from datetime import datetime
-
-from flask import Flask, render_template, request, redirect, jsonify, session, url_for
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-
+import psycopg2
+from flask import Flask, render_template, request, redirect, session, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
-
-# ---------------- App Setup ----------------
+# --------------------
+# App Setup
+# --------------------
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
-
-# ---------------- Database Setup ----------------
+app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-if DATABASE_URL:
-    # Railway Postgres fix
-    if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-else:
-    DATABASE_URL = "sqlite:///notes.db"
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set. Check Railway Variables tab.")
 
-engine = create_engine(DATABASE_URL, echo=False)
-SessionLocal = sessionmaker(bind=engine)
+# --------------------
+# Database Helpers
+# --------------------
 
-# ---------------- Login Manager ----------------
+def get_db():
+    return psycopg2.connect(DATABASE_URL, sslmode="require")
 
-login_manager = LoginManager()
-login_manager.login_view = "login"
-login_manager.init_app(app)
-
-# ---------------- Models ----------------
-
-class User(UserMixin):
-    def __init__(self, id, username, password):
-        self.id = id
-        self.username = username
-        self.password = password
-
-# ---------------- Database Init ----------------
 
 def init_db():
-    with engine.begin() as conn:
-        conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
-        )
-        """))
+    conn = get_db()
+    cur = conn.cursor()
 
-        conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS folders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            color TEXT DEFAULT 'grey',
-            user_id INTEGER NOT NULL
-        )
-        """))
+    # Users table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+    );
+    """)
 
-        conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            content TEXT,
-            color TEXT DEFAULT 'grey',
-            pinned INTEGER DEFAULT 0,
-            folder_id INTEGER DEFAULT 0,
-            user_id INTEGER NOT NULL,
-            updated_at TEXT NOT NULL
-        )
-        """))
+    # Notes table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS notes (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        title TEXT NOT NULL,
+        content TEXT NOT NULL
+    );
+    """)
 
-# ---------------- Login Loader ----------------
+    conn.commit()
+    cur.close()
+    conn.close()
 
-@login_manager.user_loader
-def load_user(user_id):
-    db = SessionLocal()
-    user = db.execute(
-        text("SELECT * FROM users WHERE id = :id"),
-        {"id": user_id}
-    ).fetchone()
-    db.close()
+    print("DB INIT OK")
 
-    if user:
-        return User(user.id, user.username, user.password)
-    return None
 
-# ---------------- Auth Routes ----------------
+# --------------------
+# Auth Routes
+# --------------------
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -99,28 +63,26 @@ def signup():
         username = request.form["username"]
         password = generate_password_hash(request.form["password"])
 
-        db = SessionLocal()
         try:
-            db.execute(
-                text("INSERT INTO users (username, password) VALUES (:u, :p)"),
-                {"u": username, "p": password}
+            conn = get_db()
+            cur = conn.cursor()
+
+            cur.execute(
+                "INSERT INTO users (username, password) VALUES (%s, %s)",
+                (username, password)
             )
-            db.commit()
-        except:
-            db.close()
-            return "Username already exists"
 
-        db.close()
-        return redirect("/login")
+            conn.commit()
+            cur.close()
+            conn.close()
 
-    return """
-    <h2>Signup</h2>
-    <form method="POST">
-        <input name="username" placeholder="Username" required><br>
-        <input name="password" type="password" placeholder="Password" required><br>
-        <button>Create Account</button>
-    </form>
-    """
+            return redirect("/login")
+
+        except Exception as e:
+            return f"Signup error: {e}"
+
+    return render_template("signup.html")
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -128,220 +90,117 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        db = SessionLocal()
-        user = db.execute(
-            text("SELECT * FROM users WHERE username = :u"),
-            {"u": username}
-        ).fetchone()
-        db.close()
+        conn = get_db()
+        cur = conn.cursor()
 
-        if user and check_password_hash(user.password, password):
-            login_user(User(user.id, user.username, user.password))
+        cur.execute(
+            "SELECT id, password FROM users WHERE username = %s",
+            (username,)
+        )
+
+        user = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        if user and check_password_hash(user[1], password):
+            session["user_id"] = user[0]
             return redirect("/")
-        return "Invalid login"
+        else:
+            return "Invalid login"
 
-    return """
-    <h2>Login</h2>
-    <form method="POST">
-        <input name="username" placeholder="Username" required><br>
-        <input name="password" type="password" placeholder="Password" required><br>
-        <button>Login</button>
-    </form>
-    """
+    return render_template("login.html")
+
 
 @app.route("/logout")
-@login_required
 def logout():
-    logout_user()
+    session.clear()
     return redirect("/login")
 
-# ---------------- Main App ----------------
+
+# --------------------
+# Notes Routes
+# --------------------
 
 @app.route("/")
-@login_required
 def index():
-    folder_id = int(request.args.get("folder", 0))
+    if "user_id" not in session:
+        return redirect("/login")
 
-    db = SessionLocal()
+    conn = get_db()
+    cur = conn.cursor()
 
-    folders = db.execute(
-        text("SELECT * FROM folders WHERE user_id = :u"),
-        {"u": current_user.id}
-    ).fetchall()
-
-    if folder_id == 0:
-        notes = db.execute(
-            text("SELECT * FROM notes WHERE user_id = :u ORDER BY pinned DESC, updated_at DESC"),
-            {"u": current_user.id}
-        ).fetchall()
-    else:
-        notes = db.execute(
-            text("""
-            SELECT * FROM notes
-            WHERE user_id = :u AND folder_id = :f
-            ORDER BY pinned DESC, updated_at DESC
-            """),
-            {"u": current_user.id, "f": folder_id}
-        ).fetchall()
-
-    db.close()
-
-    return render_template(
-        "index.html",
-        notes=notes,
-        folders=folders,
-        active_folder=folder_id
+    cur.execute(
+        "SELECT id, title, content FROM notes WHERE user_id = %s",
+        (session["user_id"],)
     )
 
-# ---------------- Notes ----------------
+    notes = cur.fetchall()
 
-@app.route("/", methods=["POST"])
-@login_required
+    cur.close()
+    conn.close()
+
+    return render_template("index.html", notes=notes)
+
+
+@app.route("/add", methods=["POST"])
 def add_note():
-    title = request.form.get("title")
-    content = request.form.get("note")
-    color = request.form.get("color", "grey")
+    if "user_id" not in session:
+        return redirect("/login")
 
-    db = SessionLocal()
-    db.execute(
-        text("""
-        INSERT INTO notes (title, content, color, user_id, updated_at)
-        VALUES (:t, :c, :col, :u, :time)
-        """),
-        {
-            "t": title,
-            "c": content,
-            "col": color,
-            "u": current_user.id,
-            "time": datetime.now().isoformat()
-        }
+    title = request.form["title"]
+    content = request.form["content"]
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute(
+        "INSERT INTO notes (user_id, title, content) VALUES (%s, %s, %s)",
+        (session["user_id"], title, content)
     )
-    db.commit()
-    db.close()
+
+    conn.commit()
+    cur.close()
+    conn.close()
 
     return redirect("/")
 
-# ---------------- Edit ----------------
 
-@app.route("/edit/<int:id>", methods=["GET", "POST"])
-@login_required
-def edit(id):
-    db = SessionLocal()
+@app.route("/delete/<int:note_id>")
+def delete_note(note_id):
+    if "user_id" not in session:
+        return redirect("/login")
 
-    if request.method == "POST":
-        db.execute(
-            text("""
-            UPDATE notes
-            SET title=:t, content=:c, updated_at=:time
-            WHERE id=:id AND user_id=:u
-            """),
-            {
-                "t": request.form["title"],
-                "c": request.form["note"],
-                "time": datetime.now().isoformat(),
-                "id": id,
-                "u": current_user.id
-            }
-        )
-        db.commit()
-        db.close()
-        return redirect("/")
+    conn = get_db()
+    cur = conn.cursor()
 
-    note = db.execute(
-        text("SELECT * FROM notes WHERE id=:id AND user_id=:u"),
-        {"id": id, "u": current_user.id}
-    ).fetchone()
-
-    db.close()
-    return render_template("edit.html", note=note)
-
-# ---------------- Delete ----------------
-
-@app.route("/delete/<int:id>")
-@login_required
-def delete(id):
-    db = SessionLocal()
-    db.execute(
-        text("DELETE FROM notes WHERE id=:id AND user_id=:u"),
-        {"id": id, "u": current_user.id}
-    )
-    db.commit()
-    db.close()
-    return redirect("/")
-
-# ---------------- Pin ----------------
-
-@app.route("/pin/<int:id>")
-@login_required
-def pin(id):
-    db = SessionLocal()
-
-    note = db.execute(
-        text("SELECT pinned FROM notes WHERE id=:id AND user_id=:u"),
-        {"id": id, "u": current_user.id}
-    ).fetchone()
-
-    new_state = 0 if note.pinned else 1
-
-    db.execute(
-        text("""
-        UPDATE notes SET pinned=:p, updated_at=:time
-        WHERE id=:id AND user_id=:u
-        """),
-        {
-            "p": new_state,
-            "time": datetime.now().isoformat(),
-            "id": id,
-            "u": current_user.id
-        }
+    cur.execute(
+        "DELETE FROM notes WHERE id = %s AND user_id = %s",
+        (note_id, session["user_id"])
     )
 
-    db.commit()
-    db.close()
-    return jsonify({"pinned": new_state})
-
-# ---------------- Folders ----------------
-
-@app.route("/new_folder", methods=["POST"])
-@login_required
-def new_folder():
-    name = request.form["name"]
-
-    db = SessionLocal()
-    db.execute(
-        text("INSERT INTO folders (name, user_id) VALUES (:n, :u)"),
-        {"n": name, "u": current_user.id}
-    )
-    db.commit()
-    db.close()
+    conn.commit()
+    cur.close()
+    conn.close()
 
     return redirect("/")
 
-@app.route("/move_note/<int:note_id>/<int:folder_id>")
-@login_required
-def move_note(note_id, folder_id):
-    db = SessionLocal()
 
-    db.execute(
-        text("""
-        UPDATE notes
-        SET folder_id=:f, updated_at=:time
-        WHERE id=:n AND user_id=:u
-        """),
-        {
-            "f": folder_id,
-            "n": note_id,
-            "u": current_user.id,
-            "time": datetime.now().isoformat()
-        }
-    )
+# --------------------
+# Railway Safe Startup
+# --------------------
 
-    db.commit()
-    db.close()
-    return "OK"
+def start_app():
+    try:
+        init_db()
+    except Exception as e:
+        print("DB INIT FAILED:", e)
 
-# ---------------- Start ----------------
+    port = int(os.environ.get("PORT", 8080))
+    print("Starting server on port", port)
+
+    app.run(host="0.0.0.0", port=port)
+
 
 if __name__ == "__main__":
-    init_db()
-    app.run(host="0.0.0.0", port=5000)
+    start_app()
