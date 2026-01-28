@@ -1,125 +1,191 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, jsonify
 import sqlite3
 from datetime import datetime
-import os
 import random
 
 app = Flask(__name__)
-
 DB_NAME = "notes.db"
 
 COLORS = ["blue", "warm", "peach", "pink", "green", "purple", "grey"]
 
+
 # ------------------------
-# Database
+# Database Helpers
 # ------------------------
 
 def get_db():
-    return sqlite3.connect(DB_NAME, check_same_thread=False)
+    db = sqlite3.connect(DB_NAME)
+    db.row_factory = sqlite3.Row
+    return db
+
 
 def init_db():
-    db = get_db()
-    cur = db.cursor()
+    with get_db() as db:
+        db.execute("""
+        CREATE TABLE IF NOT EXISTS folders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            color TEXT DEFAULT 'grey'
+        )
+        """)
 
-    cur.execute("""
+        db.execute("""
         CREATE TABLE IF NOT EXISTS notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
+            folder_id INTEGER,
+            title TEXT,
             content TEXT NOT NULL,
-            color TEXT NOT NULL,
-            folder TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            pinned INTEGER DEFAULT 0,
+            color TEXT DEFAULT 'grey',
+            updated_at TEXT
         )
-    """)
+        """)
 
-    db.commit()
+        db.execute("""
+        INSERT OR IGNORE INTO folders (id, name, color)
+        VALUES (1, 'My Notes', 'grey')
+        """)
+
 
 # ------------------------
 # Routes
 # ------------------------
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
     db = get_db()
-    cur = db.cursor()
+    folder_id = int(request.args.get("folder", 0))
 
-    cur.execute("""
-        SELECT id, title, content, color, folder
-        FROM notes
-        ORDER BY updated_at DESC
-    """)
+    if request.method == "POST":
+        title = request.form.get("title", "")
+        content = request.form["note"]
+        color = request.form.get("color", "grey")
 
-    notes = cur.fetchall()
-    return render_template("index.html", notes=notes)
+        save_folder = folder_id if folder_id != 0 else 1
 
-@app.route("/add", methods=["POST"])
-def add_note():
-    title = request.form["title"]
-    content = request.form["content"]
-    folder = request.form.get("folder", "My Folder")
+        db.execute("""
+            INSERT INTO notes (title, content, folder_id, pinned, color, updated_at)
+            VALUES (?, ?, ?, 0, ?, ?)
+        """, (title, content, save_folder, color, datetime.utcnow().isoformat()))
+        db.commit()
+
+    folders = db.execute("SELECT * FROM folders").fetchall()
+
+    if folder_id == 0:
+        notes = db.execute("""
+            SELECT * FROM notes
+            ORDER BY pinned DESC, updated_at DESC
+        """).fetchall()
+    else:
+        notes = db.execute("""
+            SELECT * FROM notes
+            WHERE folder_id=?
+            ORDER BY pinned DESC, updated_at DESC
+        """, (folder_id,)).fetchall()
+
+    return render_template("index.html",
+                           folders=folders,
+                           notes=notes,
+                           active_folder=folder_id)
+
+
+# ---------------- Folder Management ----------------
+
+@app.route("/new_folder", methods=["POST"])
+def new_folder():
+    name = request.form["name"]
     color = random.choice(COLORS)
 
-    now = datetime.utcnow().isoformat()
-
     db = get_db()
-    cur = db.cursor()
-
-    cur.execute("""
-        INSERT INTO notes (title, content, color, folder, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (title, content, color, folder, now, now))
-
+    db.execute("INSERT INTO folders (name, color) VALUES (?, ?)", (name, color))
     db.commit()
-    return redirect(url_for("index"))
+    return redirect("/")
 
-@app.route("/delete/<int:note_id>", methods=["POST"])
-def delete_note(note_id):
+
+@app.route("/rename_folder/<int:id>", methods=["POST"])
+def rename_folder(id):
+    name = request.form["name"]
     db = get_db()
-    cur = db.cursor()
-
-    cur.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+    db.execute("UPDATE folders SET name=? WHERE id=?", (name, id))
     db.commit()
+    return redirect("/")
 
-    return redirect(url_for("index"))
 
-@app.route("/edit/<int:note_id>")
-def edit(note_id):
+@app.route("/color_folder/<int:id>/<color>")
+def color_folder(id, color):
     db = get_db()
-    cur = db.cursor()
+    db.execute("UPDATE folders SET color=? WHERE id=?", (color, id))
+    db.commit()
+    return redirect("/")
 
-    cur.execute("""
-        SELECT id, title, content, folder
-        FROM notes
-        WHERE id = ?
-    """, (note_id,))
 
-    note = cur.fetchone()
+# ---------------- Notes ----------------
+
+@app.route("/delete/<int:id>")
+def delete(id):
+    db = get_db()
+    db.execute("DELETE FROM notes WHERE id=?", (id,))
+    db.commit()
+    return redirect("/")
+
+
+@app.route("/edit/<int:id>", methods=["GET", "POST"])
+def edit(id):
+    db = get_db()
+
+    if request.method == "POST":
+        title = request.form.get("title", "")
+        content = request.form["note"]
+        color = request.form.get("color", "grey")
+
+        db.execute("""
+            UPDATE notes
+            SET title=?, content=?, color=?, updated_at=?
+            WHERE id=?
+        """, (title, content, color, datetime.utcnow().isoformat(), id))
+        db.commit()
+        return redirect("/")
+
+    note = db.execute("SELECT * FROM notes WHERE id=?", (id,)).fetchone()
     return render_template("edit.html", note=note)
 
-@app.route("/update/<int:note_id>", methods=["POST"])
-def update(note_id):
-    title = request.form["title"]
-    content = request.form["content"]
-    folder = request.form.get("folder", "My Folder")
-    now = datetime.utcnow().isoformat()
 
+# ---------------- API (No Reload) ----------------
+
+@app.route("/pin/<int:id>")
+def toggle_pin(id):
     db = get_db()
-    cur = db.cursor()
+    note = db.execute("SELECT pinned FROM notes WHERE id=?", (id,)).fetchone()
 
-    cur.execute("""
+    new_state = 0 if note["pinned"] == 1 else 1
+
+    db.execute("""
         UPDATE notes
-        SET title = ?, content = ?, folder = ?, updated_at = ?
-        WHERE id = ?
-    """, (title, content, folder, now, note_id))
-
+        SET pinned=?, updated_at=?
+        WHERE id=?
+    """, (new_state, datetime.utcnow().isoformat(), id))
     db.commit()
-    return redirect(url_for("index"))
 
-# ------------------------
-# Start
-# ------------------------
+    return jsonify({"pinned": new_state})
 
+
+@app.route("/move_note/<int:note_id>/<int:folder_id>")
+def move_note(note_id, folder_id):
+    db = get_db()
+    db.execute("""
+        UPDATE notes
+        SET folder_id=?, updated_at=?
+        WHERE id=?
+    """, (folder_id, datetime.utcnow().isoformat(), note_id))
+    db.commit()
+    return jsonify({"status": "ok"})
+
+
+# ---------------- Start ----------------
+
+#if __name__ == "__main__":
+ #   init_db()
+  #  app.run(debug=True, host="0.0.0.0")
 if __name__ == "__main__":
     init_db()
     app.run(host="0.0.0.0", port=5000)
