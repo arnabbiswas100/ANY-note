@@ -23,7 +23,7 @@
         </form>
 
         {% for folder in folders %}
-        <div class="folder note-{{ folder.color }}"
+        <div class="folder note-{{ folder.color }} {% if active_folder == folder.id %}active{% endif %}"
              ondragover="allowDrop(event)"
              ondragleave="this.classList.remove('drag-hover')"
              ondrop="dropNote(event, {{ folder.id }})"
