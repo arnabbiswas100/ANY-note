@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session
 import sqlite3
 from datetime import datetime
 import os
 import hashlib
+import random
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret")
@@ -47,6 +48,10 @@ def init_db():
     """)
 
     db.commit()
+    db.close()
+
+# IMPORTANT — RUN DB INIT ON GUNICORN / RAILWAY
+init_db()
 
 # ------------------------
 # Helpers
@@ -57,6 +62,9 @@ def hash_password(pw):
 
 def logged_in():
     return "user_id" in session
+
+def random_color():
+    return random.choice(COLORS)
 
 # ------------------------
 # Auth
@@ -77,8 +85,8 @@ def signup():
                 (username, hash_password(password))
             )
             db.commit()
-        except:
-            return "Username already exists"
+        except sqlite3.IntegrityError:
+            return render_template("login.html", signup=True, error="Username already exists")
 
         return redirect(url_for("login"))
 
@@ -104,7 +112,7 @@ def login():
             session["username"] = username
             return redirect(url_for("index"))
 
-        return "Invalid username or password"
+        return render_template("login.html", signup=False, error="Invalid username or password")
 
     return render_template("login.html", signup=False)
 
@@ -144,7 +152,6 @@ def add_note():
     content = request.form["content"]
     folder = request.form.get("folder", "My Folder")
     color = random_color()
-
     now = datetime.utcnow().isoformat()
 
     db = get_db()
@@ -214,17 +221,8 @@ def update(note_id):
     return redirect(url_for("index"))
 
 # ------------------------
-# Utils
-# ------------------------
-
-def random_color():
-    import random
-    return random.choice(COLORS)
-
-# ------------------------
-# Start
+# Start (Local only)
 # ------------------------
 
 if __name__ == "__main__":
-    init_db()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)
