@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study-Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/reset.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/notes.css" />
+  <link rel="stylesheet" href="/css/pdfs.css" />
+  <link rel="stylesheet" href="/css/chat.css" />
+  <link rel="stylesheet" href="/css/auth.css" />
+  <link rel="stylesheet" href="/css/animations.css" />
+</head>
+<body>
+
+<!-- ── AUTH SCREEN ─────────────────────────────────────────────── -->
+<div id="auth-screen" class="auth-screen hidden">
+  <div class="auth-bg">
+    <div class="auth-blob blob-1"></div>
+    <div class="auth-blob blob-2"></div>
+    <div class="auth-blob blob-3"></div>
+  </div>
+  <div class="auth-panel">
+    <div class="auth-logo">
+      <span class="auth-logo-icon">◈</span>
+      <span class="auth-logo-text">Study-Hub</span>
+    </div>
+    <div class="auth-tagline">Your personal knowledge system</div>
+
+    <!-- Login Form -->
+    <form id="login-form" class="auth-form" autocomplete="off">
+      <h2 class="auth-title">Welcome back</h2>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="login-email" class="form-input" placeholder="you@example.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-with-toggle">
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••" required />
+          <button type="button" class="toggle-password" data-target="login-password">👁</button>
+        </div>
+      </div>
+      <div id="login-error" class="form-error hidden"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+        <span class="btn-text">Sign In</span>
+        <span class="btn-loader hidden">⟳</span>
+      </button>
+      <p class="auth-switch">Don't have an account? <a href="#" id="show-register">Create one</a></p>
+    </form>
+
+    <!-- Register Form -->
+    <form id="register-form" class="auth-form hidden" autocomplete="off">
+      <h2 class="auth-title">Create account</h2>
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" id="reg-name" class="form-input" placeholder="Your name" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="reg-email" class="form-input" placeholder="you@example.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-with-toggle">
+          <input type="password" id="reg-password" class="form-input" placeholder="Min 8 characters" required />
+          <button type="button" class="toggle-password" data-target="reg-password">👁</button>
+        </div>
+      </div>
+      <div id="register-error" class="form-error hidden"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="register-btn">
+        <span class="btn-text">Create Account</span>
+        <span class="btn-loader hidden">⟳</span>
+      </button>
+      <p class="auth-switch">Already have an account? <a href="#" id="show-login">Sign in</a></p>
+    </form>
+  </div>
+</div>
+
+<!-- ── APP SHELL ───────────────────────────────────────────────── -->
+<div id="app" class="app hidden">
+
+  <!-- Top Nav -->
+  <header class="topnav">
+    <div class="topnav-left">
+      <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+        <span></span><span></span><span></span>
+      </button>
+      <a class="nav-logo" href="#">
+        <span class="nav-logo-icon">◈</span>
+        <span class="nav-logo-text">Study-Hub</span>
+      </a>
+    </div>
+    <div class="topnav-center">
+      <div class="global-search-wrap" id="global-search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="search" id="global-search" class="global-search" placeholder="Search notes, PDFs…" />
+        <kbd class="search-kbd">⌘K</kbd>
+      </div>
+    </div>
+    <div class="topnav-right">
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-icon">◑</span>
+      </button>
+      <div class="user-menu-wrap">
+        <button class="user-avatar" id="user-avatar-btn" aria-label="User menu">
+          <span id="user-avatar-initials">?</span>
+        </button>
+        <div class="user-dropdown hidden" id="user-dropdown">
+          <div class="user-info">
+            <div id="dropdown-user-name" class="user-info-name"></div>
+            <div id="dropdown-user-email" class="user-info-email"></div>
+          </div>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" id="logout-btn">Sign Out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="app-body">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <button class="nav-item active" data-view="notes">
+            <span class="nav-icon">✏️</span>
+            <span class="nav-label">Notes</span>
+          </button>
+          <button class="nav-item" data-view="pdfs">
+            <span class="nav-icon">📄</span>
+            <span class="nav-label">PDFs</span>
+          </button>
+          <button class="nav-item" data-view="chat">
+            <span class="nav-icon">✦</span>
+            <span class="nav-label">AI Chat</span>
+          </button>
+        </div>
+
+        <!-- Notes Folders (shown when notes active) -->
+        <div class="sidebar-section" id="notes-folders-section">
+          <div class="sidebar-section-header">
+            <span>Folders</span>
+            <button class="sidebar-add-btn" id="add-note-folder-btn" title="New folder">+</button>
+          </div>
+          <div class="sidebar-folders" id="notes-folder-list">
+            <button class="folder-item active" data-folder="all">
+              <span class="folder-icon">📋</span> All Notes
+              <span class="folder-count" id="fc-all"></span>
+            </button>
+            <button class="folder-item" data-folder="pinned">
+              <span class="folder-icon">📌</span> Pinned
+            </button>
+            <button class="folder-item" data-folder="uncategorized">
+              <span class="folder-icon">📎</span> Uncategorized
+            </button>
+            <div id="note-folder-items"></div>
+          </div>
+        </div>
+
+        <!-- PDF Folders (shown when pdfs active) -->
+        <div class="sidebar-section hidden" id="pdf-folders-section">
+          <div class="sidebar-section-header">
+            <span>Folders</span>
+            <button class="sidebar-add-btn" id="add-pdf-folder-btn" title="New folder">+</button>
+          </div>
+          <div class="sidebar-folders" id="pdf-folder-list">
+            <button class="folder-item active" data-folder="all">
+              <span class="folder-icon">📁</span> All PDFs
+            </button>
+            <button class="folder-item" data-folder="uncategorized">
+              <span class="folder-icon">📎</span> Uncategorized
+            </button>
+            <div id="pdf-folder-items"></div>
+          </div>
+        </div>
+
+        <!-- Chat Sessions (shown when chat active) -->
+        <div class="sidebar-section hidden" id="chat-sessions-section">
+          <div class="sidebar-section-header">
+            <span>Chats</span>
+            <button class="sidebar-add-btn" id="new-chat-btn" title="New chat">+</button>
+          </div>
+          <div class="sidebar-folders" id="chat-session-list"></div>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
+
+      <!-- ── NOTES VIEW ─────────────────────────────────────── -->
+      <section class="view" id="notes-view">
+        <div class="view-header">
+          <div class="view-header-left">
+            <h1 class="view-title" id="notes-view-title">All Notes</h1>
+            <span class="view-subtitle" id="notes-count"></span>
+            <button class="btn btn-primary btn-sm" id="new-note-btn">+ New Note</button>
+          </div>
+          <div class="view-header-right">
+            <div class="search-bar-wrap notes-search-wrap">
+              <span class="si">⌕</span>
+              <input type="search" class="search-bar" id="notes-search" placeholder="Search notes…" />
+            </div>
+          </div>
+        </div>
+        <div class="notes-grid" id="notes-grid">
+          <div class="empty-state hidden" id="notes-empty">
+            <div class="empty-icon">✏️</div>
+            <div class="empty-title">No notes yet</div>
+            <div class="empty-body">Create your first note to get started</div>
+            <button class="btn btn-primary" id="empty-new-note-btn">+ New Note</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── PDF VIEW ──────────────────────────────────────── -->
+      <section class="view hidden" id="pdfs-view">
+        <div class="view-header">
+          <div class="view-header-left">
+            <h1 class="view-title" id="pdfs-view-title">PDF Library</h1>
+            <span class="view-subtitle" id="pdfs-count"></span>
+          </div>
+          <div class="view-header-right">
+            <div class="search-bar-wrap">
+              <span class="si">⌕</span>
+              <input type="search" class="search-bar" id="pdfs-search" placeholder="Search PDFs…" />
+            </div>
+            <button class="btn btn-primary" id="upload-pdf-btn">↑ Upload PDF</button>
+            <input type="file" id="pdf-file-input" accept=".pdf" class="hidden" />
+          </div>
+        </div>
+
+        <!-- Drop zone -->
+        <div class="drop-zone hidden" id="drop-zone">
+          <div class="drop-zone-inner">
+            <div class="drop-icon">📄</div>
+            <div class="drop-text">Drop PDF here to upload</div>
+          </div>
+        </div>
+
+        <div class="pdfs-grid" id="pdfs-grid">
+          <div class="empty-state hidden" id="pdfs-empty">
+            <div class="empty-icon">📚</div>
+            <div class="empty-title">No PDFs yet</div>
+            <div class="empty-body">Upload your first PDF document</div>
+            <button class="btn btn-primary" id="empty-upload-btn">↑ Upload PDF</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── CHAT VIEW ─────────────────────────────────────── -->
+      <section class="view hidden" id="chat-view">
+        <div class="chat-layout">
+          <!-- Chat welcome / empty state -->
+          <div class="chat-welcome" id="chat-welcome">
+            <div class="chat-welcome-icon">✦</div>
+            <h2 class="chat-welcome-title">Study-Hub AI</h2>
+            <p class="chat-welcome-body">Ask anything about your notes and PDFs, or just chat to learn.</p>
+            <div class="chat-suggestions">
+              <button class="suggestion-chip" data-prompt="Summarize my recent notes">📋 Summarize my recent notes</button>
+              <button class="suggestion-chip" data-prompt="What PDFs do I have uploaded?">📄 What PDFs do I have?</button>
+              <button class="suggestion-chip" data-prompt="Help me create study flashcards from my notes">🃏 Create flashcards from notes</button>
+              <button class="suggestion-chip" data-prompt="What are the key topics in my study materials?">🔑 Key topics in my materials</button>
+            </div>
+          </div>
+
+          <!-- Active chat messages -->
+          <div class="chat-messages hidden" id="chat-messages">
+            <div class="messages-list" id="messages-list"></div>
+          </div>
+
+          <!-- Chat Input -->
+          <div class="chat-input-bar">
+            <div class="chat-context-badge hidden" id="chat-context-badge">
+              <span id="chat-context-label"></span>
+              <button class="clear-context" id="clear-context-btn">×</button>
+            </div>
+            <div class="chat-input-wrap">
+              <button class="chat-attach-btn" id="chat-attach-btn" title="Attach context">
+                <span>⊕</span>
+              </button>
+              <div class="chat-attach-menu hidden" id="chat-attach-menu">
+                <div class="attach-menu-title">Add context</div>
+                <div id="attach-notes-list" class="attach-list"></div>
+                <div class="attach-divider"></div>
+                <div id="attach-pdfs-list" class="attach-list"></div>
+              </div>
+              <textarea
+                id="chat-input"
+                class="chat-input"
+                placeholder="Ask Study-Hub AI…"
+                rows="1"
+              ></textarea>
+              <button class="chat-send-btn" id="chat-send-btn" disabled>
+                <span>↑</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ── MODALS ──────────────────────────────────────────────────── -->
+
+<!-- Note Editor Modal -->
+<div class="modal-overlay hidden" id="note-modal-overlay">
+  <div class="modal note-modal" id="note-modal">
+    <div class="note-modal-header">
+      <input type="text" id="note-title-input" class="note-title-input" placeholder="Title" />
+      <div class="note-modal-actions">
+        <button class="icon-btn pin-btn" id="note-pin-btn" title="Pin note">📌</button>
+        <div class="color-picker-wrap">
+          <button class="icon-btn" id="color-picker-trigger" title="Color">🎨</button>
+          <div class="color-picker-popup hidden" id="color-picker-popup">
+            <div class="color-swatches" id="color-swatches"></div>
+          </div>
+        </div>
+        <select class="folder-select" id="note-folder-select">
+          <option value="">No folder</option>
+        </select>
+        <button class="icon-btn close-btn" id="close-note-modal">✕</button>
+      </div>
+    </div>
+    <textarea id="note-content-input" class="note-content-input" placeholder="Write something… (Markdown supported)"></textarea>
+    <div class="note-modal-footer">
+      <div class="note-meta" id="note-meta"></div>
+      <div class="note-footer-actions">
+        <button class="btn btn-ghost" id="delete-note-btn" style="display:none">Delete</button>
+        <button class="btn btn-primary" id="save-note-btn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Folder Modal -->
+<div class="modal-overlay hidden" id="folder-modal-overlay">
+  <div class="modal folder-modal" id="folder-modal">
+    <h3 class="modal-title" id="folder-modal-title">New Folder</h3>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input type="text" id="folder-name-input" class="form-input" placeholder="Folder name" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Icon</label>
+      <div class="icon-picker" id="icon-picker">
+        <span class="icon-option selected" data-icon="📁">📁</span>
+        <span class="icon-option" data-icon="📚">📚</span>
+        <span class="icon-option" data-icon="📝">📝</span>
+        <span class="icon-option" data-icon="🔬">🔬</span>
+        <span class="icon-option" data-icon="💡">💡</span>
+        <span class="icon-option" data-icon="⭐">⭐</span>
+        <span class="icon-option" data-icon="🎯">🎯</span>
+        <span class="icon-option" data-icon="🔖">🔖</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Color</label>
+      <div class="folder-color-swatches" id="folder-color-swatches"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="cancel-folder-btn">Cancel</button>
+      <button class="btn btn-primary" id="save-folder-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF Viewer Modal -->
+<div class="modal-overlay hidden" id="pdf-viewer-overlay">
+  <div class="modal pdf-viewer-modal" id="pdf-viewer-modal">
+    <div class="pdf-viewer-header">
+      <div class="pdf-viewer-title" id="pdf-viewer-title"></div>
+      <div class="pdf-viewer-actions">
+        <button class="btn btn-ghost btn-sm" id="pdf-chat-btn">✦ Ask AI</button>
+        <button class="btn btn-ghost btn-sm" id="pdf-download-btn">↓ Download</button>
+        <button class="icon-btn" id="close-pdf-viewer">✕</button>
+      </div>
+    </div>
+    <div class="pdf-viewer-body">
+      <iframe id="pdf-iframe" class="pdf-iframe" title="PDF Viewer"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Scripts -->
+<script src="/js/utils/storage.js"></script>
+<script src="/js/utils/helpers.js"></script>
+<script src="/js/utils/api.js"></script>
+<script src="/js/modules/auth.js"></script>
+<script src="/js/modules/notes.js"></script>
+<script src="/js/modules/pdfs.js"></script>
+<script src="/js/modules/chat.js"></script>
+<script src="/js/app.js"></script>
+
+</body>
+</html>

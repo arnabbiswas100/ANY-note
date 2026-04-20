@@ -1,0 +1,139 @@
+/* ═══════════════════════════════════════════════════════════════
+   STUDY-HUB — Design Tokens
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Fonts ─────────────────────────────────────────── */
+  --font-display: 'Syne', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+
+  /* ── Spacing ───────────────────────────────────────── */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* ── Radius ────────────────────────────────────────── */
+  --r-sm:  6px;
+  --r-md:  10px;
+  --r-lg:  16px;
+  --r-xl:  24px;
+  --r-full: 9999px;
+
+  /* ── Transitions ───────────────────────────────────── */
+  --t-fast:   120ms ease;
+  --t-base:   220ms ease;
+  --t-slow:   380ms cubic-bezier(.4,0,.2,1);
+  --t-spring: 400ms cubic-bezier(.34,1.56,.64,1);
+
+  /* ── Shadows ───────────────────────────────────────── */
+  --shadow-xs: 0 1px 3px rgba(0,0,0,.12);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.16);
+  --shadow-md: 0 4px 20px rgba(0,0,0,.22);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.30);
+  --shadow-xl: 0 16px 60px rgba(0,0,0,.40);
+
+  /* ── Layout ────────────────────────────────────────── */
+  --topnav-h:   58px;
+  --sidebar-w:  240px;
+  --sidebar-collapsed: 0px;
+}
+
+/* ── Dark Theme (default) ───────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:          #0f0f0f;
+  --bg-2:        #161616;
+  --bg-3:        #1e1e1e;
+  --bg-4:        #252525;
+  --bg-hover:    #2a2a2a;
+  --border:      #2e2e2e;
+  --border-2:    #3a3a3a;
+
+  --text:        #f0ede8;
+  --text-2:      #b8b4ae;
+  --text-3:      #7a776f;
+  --text-inv:    #0f0f0f;
+
+  --accent:      #f0ede8;
+  --accent-dim:  rgba(240,237,232,.12);
+  --accent-glow: rgba(240,237,232,.06);
+
+  --primary:     #f0ede8;
+  --primary-fg:  #0f0f0f;
+
+  --danger:      #ff5858;
+  --danger-dim:  rgba(255,88,88,.15);
+  --success:     #4cde80;
+  --success-dim: rgba(76,222,128,.15);
+  --warning:     #f5a623;
+
+  /* note colors */
+  --note-default: #1e1e1e;
+  --note-red:     #2e1515;
+  --note-orange:  #2a1e0e;
+  --note-yellow:  #25200a;
+  --note-green:   #0e2016;
+  --note-teal:    #0e1f20;
+  --note-blue:    #0e1525;
+  --note-purple:  #1a0e2a;
+  --note-pink:    #2a0e1e;
+  --note-gray:    #1e1e1e;
+
+  --scrollbar-track: #161616;
+  --scrollbar-thumb: #2e2e2e;
+}
+
+/* ── Light Theme ────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:          #f8f5f0;
+  --bg-2:        #ffffff;
+  --bg-3:        #f0ede8;
+  --bg-4:        #e8e4de;
+  --bg-hover:    #e2ded8;
+  --border:      #d8d4ce;
+  --border-2:    #c8c4be;
+
+  --text:        #1a1714;
+  --text-2:      #4a4642;
+  --text-3:      #8a8480;
+  --text-inv:    #f8f5f0;
+
+  --accent:      #1a1714;
+  --accent-dim:  rgba(26,23,20,.10);
+  --accent-glow: rgba(26,23,20,.05);
+
+  --primary:     #1a1714;
+  --primary-fg:  #f8f5f0;
+
+  --danger:      #d93636;
+  --danger-dim:  rgba(217,54,54,.12);
+  --success:     #28a858;
+  --success-dim: rgba(40,168,88,.12);
+  --warning:     #d4820a;
+
+  --note-default: #ffffff;
+  --note-red:     #fde8e8;
+  --note-orange:  #fdeede;
+  --note-yellow:  #fdf6dc;
+  --note-green:   #e2f5ea;
+  --note-teal:    #dff4f4;
+  --note-blue:    #deedf8;
+  --note-purple:  #ece6f8;
+  --note-pink:    #fbe6f0;
+  --note-gray:    #f0eeec;
+
+  --scrollbar-track: #f0ede8;
+  --scrollbar-thumb: #ccc8c2;
+
+  --shadow-xs: 0 1px 3px rgba(0,0,0,.06);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 20px rgba(0,0,0,.10);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.14);
+  --shadow-xl: 0 16px 60px rgba(0,0,0,.18);
+}
