@@ -216,8 +216,8 @@
         <div class="notes-grid" id="notes-grid">
           <div class="empty-state hidden" id="notes-empty">
             <div class="empty-icon">✏️</div>
-            <div class="empty-title">No notes yet</div>
-            <div class="empty-body">Create your first note to get started</div>
+            <div class="empty-title">No Notes Yet, Start Making Notes!</div>
+            <div class="empty-body">Capture your ideas, summaries, and thoughts — all in one place.</div>
             <button class="btn btn-primary" id="empty-new-note-btn">+ New Note</button>
           </div>
         </div>
@@ -334,7 +334,13 @@
         <button class="icon-btn close-btn" id="close-note-modal">✕</button>
       </div>
     </div>
-    <textarea id="note-content-input" class="note-content-input" placeholder="Write something… (Markdown supported)"></textarea>
+    <div class="note-split-editor">
+      <textarea id="note-content-input" class="note-content-input" placeholder="Write something… (Markdown supported)"></textarea>
+      <div class="note-split-divider"></div>
+      <div id="note-markdown-preview" class="note-markdown-preview">
+        <div class="note-preview-empty">Preview will appear here…</div>
+      </div>
+    </div>
     <div class="note-modal-footer">
       <div class="note-meta" id="note-meta"></div>
       <div class="note-footer-actions">

@@ -122,10 +122,14 @@ const Notes = (() => {
     const folderLabel = note.folder_name
       ? `<span class="note-card-folder">${escHtml(note.folder_name)}</span>` : '';
 
+    // Render a short markdown preview for the card body
+    const previewText = truncate(note.content || '', 200);
+    const previewHtml = renderMarkdown(previewText);
+
     card.innerHTML = `
       ${note.is_pinned ? '<span class="note-card-pin">📌</span>' : ''}
       ${note.title ? `<div class="note-card-title">${escHtml(note.title)}</div>` : ''}
-      <div class="note-card-body">${truncate(note.content || '', 200)}</div>
+      <div class="note-card-body">${previewHtml}</div>
       <div class="note-card-footer">
         <span class="note-card-date">${formatDate(note.updated_at)}</span>
         ${folderLabel}
@@ -270,6 +274,9 @@ const Notes = (() => {
 
     renderColorSwatches();
 
+    // Render initial markdown preview
+    updateMarkdownPreview();
+
     show(overlay);
     titleEl?.focus();
   };
@@ -312,7 +319,7 @@ const Notes = (() => {
     const folderSel = el('note-folder-select');
 
     const title   = titleEl?.value.trim() || '';
-    const content = contentEl?.value.trim() || '';
+    const content = contentEl?.value.replace(/\s+$/, '') || '';  // only trim trailing whitespace, preserve internal newlines/spaces
 
     if (!title && !content) {
       toast.info('Note is empty — nothing saved.');
@@ -516,6 +523,18 @@ const Notes = (() => {
   const getNotes = () => state.notes;
   const getFolders = () => state.folders;
 
+  // ── Live markdown preview ─────────────────────────────────────
+  const updateMarkdownPreview = () => {
+    const preview = el('note-markdown-preview');
+    if (!preview) return;
+    const content = el('note-content-input')?.value || '';
+    if (!content.trim()) {
+      preview.innerHTML = '<div class="note-preview-empty">Preview will appear here…</div>';
+    } else {
+      preview.innerHTML = renderMarkdown(content);
+    }
+  };
+
   // ── Init ─────────────────────────────────────────────────────
   const init = () => {
     // New note buttons
@@ -581,6 +600,9 @@ const Notes = (() => {
 
     // Search
     el('notes-search')?.addEventListener('input', (e) => handleSearch(e.target.value));
+
+    // Live markdown preview — updates on every keystroke
+    el('note-content-input')?.addEventListener('input', updateMarkdownPreview);
 
     // Keyboard shortcut
     el('note-content-input')?.addEventListener('keydown', (e) => {
