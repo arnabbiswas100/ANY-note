@@ -43,21 +43,27 @@ app.use(cors({
 }));
 
 // ── Rate Limiting ─────────────────────────────────────────────────────────────
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 200,
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
   message: { success: false, error: 'Too many requests, please try again later' }
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 10,
   message: { success: false, error: 'Too many login attempts, please try again later' }
 });
 
-app.use('/api/', limiter);
+// Auth routes get strict limiter only — not counted against general quota
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+
+// All other API routes get the lenient limiter
+app.use('/api/', (req, res, next) => {
+  if (req.path.startsWith('/auth/')) return next();
+  return generalLimiter(req, res, next);
+});
 
 // ── Body Parsing ──────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));

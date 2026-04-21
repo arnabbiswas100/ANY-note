@@ -46,7 +46,7 @@ const App = (() => {
     state.sidebarOpen = open;
     const sidebar = el('sidebar');
     const appEl   = el('app');
-    if (sidebar) sidebar.classList.toggle('sidebar-collapsed', !open);
+    if (sidebar) sidebar.classList.toggle('collapsed', !open);
     if (appEl)   appEl.classList.toggle('sidebar-collapsed',   !open);
   };
 
@@ -189,16 +189,14 @@ const App = (() => {
   const initResponsive = () => {
     const mq = window.matchMedia('(max-width: 767px)');
 
-    const handleMQ = (e) => {
+    // Only collapse/expand when crossing the breakpoint, not on initial load
+    mq.addEventListener('change', (e) => {
       if (e.matches) {
         setSidebarOpen(false);
       } else {
         setSidebarOpen(true);
       }
-    };
-
-    mq.addEventListener('change', handleMQ);
-    handleMQ(mq);
+    });
   };
 
   // ─────────────────────────────────────────────────────────────
@@ -237,6 +235,9 @@ const App = (() => {
         PDFs.init?.(),
         Chat.init?.(),
       ].filter(Boolean));
+
+      // Load initial data for Notes (folders + notes)
+      await Notes.load?.();
     } catch (err) {
       console.error('Module init error:', err);
     }
