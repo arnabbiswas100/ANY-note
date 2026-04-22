@@ -211,7 +211,7 @@ const Chat = (() => {
 
     try {
       const body = {
-        message:          content,
+        content:          content,
         context_note_ids: state.context.noteIds,
         context_pdf_ids:  state.context.pdfIds,
       };
@@ -226,7 +226,8 @@ const Chat = (() => {
       } else {
         // Regular JSON response
         const data = response;
-        const aiContent = data.message?.content
+        const aiContent = data.assistantMessage?.content
+          || data.message?.content
           || data.content
           || data.reply
           || data.data?.content
@@ -236,7 +237,7 @@ const Chat = (() => {
           role: 'assistant',
           content: aiContent,
           created_at: new Date().toISOString(),
-          id: data.message?.id || data.id,
+          id: data.assistantMessage?.id || data.message?.id || data.id,
         };
         appendMessage(aiMsg);
 
