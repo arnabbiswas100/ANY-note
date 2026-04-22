@@ -581,9 +581,15 @@ const Notes = (() => {
       btn.addEventListener('click', () => setActiveFolder(btn.dataset.folder));
     });
 
-    // Folder modal
-    el('save-folder-btn')?.addEventListener('click', saveFolder);
-    el('cancel-folder-btn')?.addEventListener('click', closeFolderModal);
+    // Folder modal — only handle when PDF module hasn't claimed the modal
+    el('save-folder-btn')?.addEventListener('click', () => {
+      const overlay = el('folder-modal-overlay');
+      if (overlay?.dataset.context !== 'pdf') saveFolder();
+    });
+    el('cancel-folder-btn')?.addEventListener('click', () => {
+      const overlay = el('folder-modal-overlay');
+      if (overlay?.dataset.context !== 'pdf') closeFolderModal();
+    });
 
     el('folder-modal-overlay')?.addEventListener('click', (e) => {
       if (e.target.id === 'folder-modal-overlay') closeFolderModal();

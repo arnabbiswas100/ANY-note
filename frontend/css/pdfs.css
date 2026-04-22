@@ -245,3 +245,138 @@
     border-radius: 0;
   }
 }
+
+/* ── Hover action buttons on PDF card thumbnail ─────────────── */
+.pdf-card-hover-actions {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.60);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  opacity: 0;
+  transition: opacity var(--t-base);
+  border-radius: 0;
+}
+
+.pdf-card:hover .pdf-card-hover-actions {
+  opacity: 1;
+}
+
+.pdf-action-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-full);
+  background: rgba(255,255,255,.15);
+  color: #fff;
+  font-size: 15px;
+  backdrop-filter: blur(4px);
+  border: none;
+  cursor: pointer;
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+
+.pdf-action-btn:hover {
+  background: rgba(255,255,255,.28);
+  transform: scale(1.1);
+}
+
+.pdf-action-btn.del-btn:hover {
+  background: rgba(255,88,88,.45);
+}
+
+/* ── Move-to-folder dropdown on PDF card ────────────────────── */
+.pdf-card {
+  position: relative;
+}
+
+/* Dropdown is a sibling of pdf-card, needs overflow visible on card
+   We attach it to document body via JS positioning instead — but since
+   it's inside .pdf-card we need to let it overflow the card */
+.pdf-card {
+  overflow: visible;
+}
+
+/* Re-clip only the thumb area, not the whole card */
+.pdf-card-thumb {
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+}
+
+.pdf-move-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md, 8px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.2);
+  z-index: 200;
+  min-width: 170px;
+  padding: 6px 0;
+  animation: fadeIn .15s ease;
+}
+
+.pdf-move-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 4px 12px 6px;
+}
+
+.pdf-move-option {
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  transition: background .15s;
+}
+
+.pdf-move-option:hover {
+  background: var(--bg-3);
+  color: var(--accent, #6c63ff);
+}
+
+/* ── Folder badge in card meta (inline) ─────────────────────── */
+.pdf-card-meta .pdf-folder-badge {
+  position: static;
+  background: none;
+  backdrop-filter: none;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* ── Folder action buttons (edit/delete) ─────────────────────── */
+.folder-item .folder-actions {
+  display: none;
+  gap: 2px;
+}
+
+.folder-item:hover .folder-actions {
+  display: flex;
+}
+
+.folder-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-muted, #888);
+  line-height: 1;
+  transition: color .15s, background .15s;
+}
+
+.folder-action-btn:hover {
+  color: var(--text, #eee);
+  background: var(--surface-3, rgba(255,255,255,.08));
+}

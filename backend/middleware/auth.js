@@ -3,19 +3,21 @@ const { query } = require('../config/database');
 
 const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    // Accept token from Authorization header OR ?token= query param (needed for stream/download URLs)
+    let token = null;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.query.token) {
+      token = req.query.token;
+    }
+
+    if (!token) {
       return res.status(401).json({
         success: false,
         error: 'Authentication required. Please provide a valid Bearer token.'
       });
-    }
-
-    const token = authHeader.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Token not provided' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);

@@ -37,7 +37,8 @@ const PDFs = (() => {
     try {
       const params = {};
       if (state.searchQuery) params.search = state.searchQuery;
-      if (state.activeFolder !== 'all') params.folder_id = state.activeFolder;
+      if (state.activeFolder === 'uncategorized') params.folder = 'uncategorized';
+      else if (state.activeFolder !== 'all') params.folder = state.activeFolder;
 
       const data = await API.pdfs.getAll(params);
       state.pdfs = data.pdfs || data.data || data || [];
@@ -84,12 +85,17 @@ const PDFs = (() => {
       ? `<img src="${escHtml(pdf.thumbnail_url)}" alt="thumbnail" class="pdf-thumb-img" loading="lazy">`
       : `<div class="pdf-thumb-icon">📄</div>`;
 
+    const folderOptions = state.folders.map(f =>
+      `<div class="pdf-move-option" data-folder-id="${f.id}">${escHtml(f.icon || '📁')} ${escHtml(f.name)}</div>`
+    ).join('');
+
     card.innerHTML = `
       <div class="pdf-card-thumb">
         ${thumb}
         <div class="pdf-card-hover-actions">
           <button class="pdf-action-btn view-btn" data-id="${pdf.id}" title="Open">👁</button>
           <button class="pdf-action-btn dl-btn"   data-id="${pdf.id}" title="Download">↓</button>
+          <button class="pdf-action-btn move-btn" data-id="${pdf.id}" title="Move to folder">📂</button>
           <button class="pdf-action-btn del-btn"  data-id="${pdf.id}" title="Delete">✕</button>
         </div>
       </div>
@@ -98,10 +104,16 @@ const PDFs = (() => {
           ${escHtml(truncate(pdf.original_name || pdf.filename || 'Untitled', 32))}
         </div>
         <div class="pdf-card-meta">
+          ${pdf.folder_name ? `<span class="pdf-folder-badge" style="color:${pdf.folder_color || '#6c63ff'}">${escHtml(pdf.folder_name)}</span> · ` : ''}
           ${pdf.file_size ? formatFileSize(pdf.file_size) : ''}
           ${pdf.file_size && pdf.created_at ? ' · ' : ''}
           ${pdf.created_at ? formatDate(pdf.created_at) : ''}
         </div>
+      </div>
+      <div class="pdf-move-dropdown hidden">
+        <div class="pdf-move-title">Move to folder</div>
+        <div class="pdf-move-option" data-folder-id="">No Folder</div>
+        ${folderOptions}
       </div>
     `;
 
@@ -113,9 +125,36 @@ const PDFs = (() => {
       e.stopPropagation();
       downloadPDF(pdf);
     });
+    card.querySelector('.move-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.pdf-move-dropdown').forEach(d => {
+        if (d !== card.querySelector('.pdf-move-dropdown')) d.classList.add('hidden');
+      });
+      card.querySelector('.pdf-move-dropdown').classList.toggle('hidden');
+    });
     card.querySelector('.del-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       confirmDelete(pdf);
+    });
+    card.querySelectorAll('.pdf-move-option').forEach(opt => {
+      opt.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const folderId = opt.dataset.folderId || null;
+        try {
+          await API.pdfs.update(pdf.id, { folder_id: folderId });
+          toast.success('PDF moved.');
+          card.querySelector('.pdf-move-dropdown').classList.add('hidden');
+          await loadPDFs();
+        } catch (err) {
+          toast.error('Failed to move PDF: ' + err.message);
+        }
+      });
+    });
+    // Close dropdown when clicking outside the card
+    document.addEventListener('mousedown', function outsideClose(e) {
+      if (!card.contains(e.target)) {
+        card.querySelector('.pdf-move-dropdown')?.classList.add('hidden');
+      }
     });
     card.addEventListener('click', () => openViewer(pdf));
 
@@ -179,9 +218,22 @@ const PDFs = (() => {
     renderFolderSidebar();
 
     // Update "All" item active state
-    el('pdf-folder-list')?.querySelectorAll('[data-filter]').forEach(b => {
-      b.classList.toggle('active', b.dataset.filter === folderId);
+    el('pdf-folder-list')?.querySelectorAll('[data-folder]').forEach(b => {
+      b.classList.toggle('active', b.dataset.folder === folderId);
     });
+
+    // Update view title to show current folder name
+    const titleEl = el('pdfs-view-title');
+    if (titleEl) {
+      if (folderId === 'all') {
+        titleEl.textContent = 'PDF Library';
+      } else if (folderId === 'uncategorized') {
+        titleEl.textContent = 'Uncategorized';
+      } else {
+        const folder = state.folders.find(f => String(f.id) === String(folderId));
+        titleEl.textContent = folder ? folder.name : 'PDF Library';
+      }
+    }
 
     loadPDFs();
   };
@@ -400,7 +452,7 @@ const PDFs = (() => {
     const overlay = el('folder-modal-overlay');
     if (overlay?.dataset.context !== 'pdf') return; // handled by Notes module
 
-    const icon = document.querySelector('#icon-picker .icon-option.active')?.dataset.icon || '📁';
+    const icon = document.querySelector('#icon-picker .icon-option.selected')?.dataset.icon || '📁';
 
     try {
       if (folderEditTarget) {
@@ -473,8 +525,8 @@ const PDFs = (() => {
 
     // All folders filter button
     el('pdf-folder-list')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-filter]');
-      if (btn) setActiveFolder(btn.dataset.filter);
+      const btn = e.target.closest('[data-folder]');
+      if (btn) setActiveFolder(btn.dataset.folder);
     });
 
     // Viewer close
