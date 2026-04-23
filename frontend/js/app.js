@@ -123,14 +123,32 @@ const App = (() => {
 
   const switchView = (view) => {
     if (!VIEWS.includes(view)) return;
+    if (view === state.activeView) return;
     state.activeView = view;
     Storage.setActiveView(view);
 
-    // Toggle view sections
-    VIEWS.forEach(v => {
-      const section = el(`${v}-view`);
-      if (section) section.classList.toggle('hidden', v !== view);
-    });
+    // Smooth blur-fade: fade out current view, swap, let .view animation handle incoming
+    const outgoing = VIEWS.map(v => el(`${v}-view`)).find(s => s && !s.classList.contains('hidden'));
+    const doSwap = () => {
+      VIEWS.forEach(v => {
+        const section = el(`${v}-view`);
+        if (section) section.classList.toggle('hidden', v !== view);
+      });
+    };
+
+    if (outgoing && el(`${view}-view`) && outgoing !== el(`${view}-view`)) {
+      outgoing.style.transition = 'opacity 150ms cubic-bezier(.4,0,.2,1), filter 150ms cubic-bezier(.4,0,.2,1)';
+      outgoing.style.opacity    = '0';
+      outgoing.style.filter     = 'blur(3px)';
+      setTimeout(() => {
+        outgoing.style.transition = '';
+        outgoing.style.opacity    = '';
+        outgoing.style.filter     = '';
+        doSwap();
+      }, 155);
+    } else {
+      doSwap();
+    }
 
     // Update nav items
     document.querySelectorAll('[data-view]').forEach(item => {

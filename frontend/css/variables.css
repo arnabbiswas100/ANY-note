@@ -28,10 +28,11 @@
   --r-full: 9999px;
 
   /* ── Transitions ───────────────────────────────────── */
-  --t-fast:   120ms ease;
-  --t-base:   220ms ease;
-  --t-slow:   380ms cubic-bezier(.4,0,.2,1);
-  --t-spring: 400ms cubic-bezier(.34,1.56,.64,1);
+  --t-fast:   160ms cubic-bezier(.4, 0, .2, 1);
+  --t-base:   300ms cubic-bezier(.4, 0, .2, 1);
+  --t-slow:   460ms cubic-bezier(.4, 0, .2, 1);
+  --t-fade:   260ms cubic-bezier(.25, .46, .45, .94);
+  --t-spring: 500ms cubic-bezier(.34, 1.2, .64, 1);
 
   /* ── Shadows ───────────────────────────────────────── */
   --shadow-xs: 0 1px 3px rgba(0,0,0,.12);

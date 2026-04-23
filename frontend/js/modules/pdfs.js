@@ -79,7 +79,7 @@ const PDFs = (() => {
     const card = document.createElement('div');
     card.className = 'pdf-card';
     card.dataset.id = pdf.id;
-    card.style.animationDelay = `${index * 40}ms`;
+    card.style.animationDelay = `${index * 55}ms`;
 
     const thumb = pdf.thumbnail_url
       ? `<img src="${escHtml(pdf.thumbnail_url)}" alt="thumbnail" class="pdf-thumb-img" loading="lazy">`

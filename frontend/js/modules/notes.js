@@ -117,7 +117,7 @@ const Notes = (() => {
     card.dataset.id = note.id;
     if (note.color) card.dataset.color = note.color;
     if (note.is_pinned) card.classList.add('pinned');
-    card.style.animationDelay = `${idx * 30}ms`;
+    card.style.animationDelay = `${idx * 50}ms`;
 
     const folderLabel = note.folder_name
       ? `<span class="note-card-folder">${escHtml(note.folder_name)}</span>` : '';
@@ -215,6 +215,52 @@ const Notes = (() => {
       sel.appendChild(opt);
     });
     sel.value = current;
+    syncCustomFolderDropdown();
+  };
+
+  const syncCustomFolderDropdown = () => {
+    const sel      = el('note-folder-select');
+    const dropdown = el('note-folder-select-dropdown');
+    const label    = el('note-folder-select-label');
+    if (!sel || !dropdown) return;
+
+    // Rebuild dropdown options from the hidden <select>
+    dropdown.innerHTML = '';
+    Array.from(sel.options).forEach(opt => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'folder-select-option' + (opt.value === sel.value ? ' selected' : '');
+      btn.textContent = opt.text;
+      btn.dataset.value = opt.value;
+      btn.addEventListener('click', () => {
+        sel.value = opt.value;
+        if (label) label.textContent = opt.text;
+        dropdown.querySelectorAll('.folder-select-option').forEach(b =>
+          b.classList.toggle('selected', b.dataset.value === opt.value)
+        );
+        dropdown.classList.add('hidden');
+      });
+      dropdown.appendChild(btn);
+    });
+
+    // Update label to reflect current selection
+    const selectedOpt = sel.options[sel.selectedIndex];
+    if (label && selectedOpt) label.textContent = selectedOpt.text;
+  };
+
+  // Setup custom dropdown toggle (called once after DOM ready)
+  const initCustomFolderDropdown = () => {
+    const btn      = el('note-folder-select-btn');
+    const dropdown = el('note-folder-select-dropdown');
+    if (!btn || !dropdown) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      syncCustomFolderDropdown();
+      dropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', () => dropdown.classList.add('hidden'));
   };
 
   // ── Active folder helpers ─────────────────────────────────────
@@ -253,7 +299,10 @@ const Notes = (() => {
 
     if (titleEl)   titleEl.value   = note?.title   || '';
     if (contentEl) contentEl.value = note?.content || '';
-    if (folderSel) folderSel.value = note?.folder_id || '';
+    if (folderSel) {
+      folderSel.value = note?.folder_id || '';
+      syncCustomFolderDropdown();
+    }
 
     if (deleteBtn) deleteBtn.style.display = note ? 'inline-flex' : 'none';
 
@@ -537,6 +586,8 @@ const Notes = (() => {
 
   // ── Init ─────────────────────────────────────────────────────
   const init = () => {
+    initCustomFolderDropdown();
+
     // New note buttons
     el('new-note-btn')?.addEventListener('click', () => openNoteModal());
     el('empty-new-note-btn')?.addEventListener('click', () => openNoteModal());

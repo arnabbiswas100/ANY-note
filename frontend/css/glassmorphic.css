@@ -294,7 +294,7 @@
   );
   border-color: rgba(255,255,255,0.18);
   box-shadow:
-    0 8px 36px rgba(0,0,0,0.5),
+    0 12px 48px rgba(0,0,0,0.55),
     inset 0 1px 0 rgba(255,255,255,0.12),
     inset 1px 0 0 rgba(255,255,255,0.06);
   transform: translateY(-2px);
@@ -317,7 +317,7 @@
 [data-theme="glass-dark"] .pdf-card:hover {
   background: linear-gradient(145deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.055) 60%, rgba(255,255,255,0.09) 100%);
   border-color: rgba(255,255,255,0.18);
-  box-shadow: 0 8px 36px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.12);
   transform: translateY(-2px);
 }
 
@@ -371,7 +371,7 @@
   );
   border-color: rgba(255,255,255,0.95);
   box-shadow:
-    0 8px 36px rgba(0,0,0,0.14),
+    0 12px 48px rgba(0,0,0,0.16),
     inset 0 1px 0 rgba(255,255,255,1),
     inset 1px 0 0 rgba(255,255,255,0.7);
   transform: translateY(-2px);
@@ -388,7 +388,7 @@
 [data-theme="glass-light"] .pdf-card:hover {
   background: linear-gradient(145deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.55) 60%, rgba(255,255,255,0.7) 100%);
   border-color: rgba(255,255,255,0.95);
-  box-shadow: 0 8px 36px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,1);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,1);
   transform: translateY(-2px);
 }
 
@@ -696,7 +696,7 @@
   font-family: var(--font-body);
   color: var(--text-3);
   cursor: pointer;
-  transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
+  transition: background 220ms cubic-bezier(.4, 0, .2, 1), color 200ms cubic-bezier(.4, 0, .2, 1), box-shadow 240ms cubic-bezier(.4, 0, .2, 1);
   border: none;
   background: transparent;
   white-space: nowrap;
@@ -745,14 +745,15 @@
   border: 1px solid var(--border);
   background: var(--bg-3);
   box-shadow: 0 1px 4px rgba(0,0,0,0.18);
-  transition: background var(--t-fast), border-color var(--t-fast),
-              box-shadow var(--t-fast);
+  transition: background 200ms cubic-bezier(.4, 0, .2, 1), border-color 200ms cubic-bezier(.4, 0, .2, 1),
+              box-shadow 240ms cubic-bezier(.4, 0, .2, 1), transform 220ms cubic-bezier(.34, 1.2, .64, 1);
   cursor: pointer;
 }
 
 .theme-mode-btn:hover {
   background: var(--bg-2);
   border-color: var(--border-2);
+  transform: scale(1.08) rotate(-15deg);
 }
 
 /* SVG icon */
@@ -873,8 +874,9 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
-  transition: background var(--t-fast), border-color var(--t-fast),
-              box-shadow var(--t-fast), color var(--t-fast);
+  transition: background 240ms cubic-bezier(.4, 0, .2, 1), border-color 240ms cubic-bezier(.4, 0, .2, 1),
+              box-shadow 280ms cubic-bezier(.4, 0, .2, 1), color 200ms cubic-bezier(.4, 0, .2, 1),
+              transform 260ms cubic-bezier(.34, 1.1, .64, 1);
 }
 
 /* Inner button inside wrap: transparent, no border, inherits radius */
@@ -929,8 +931,9 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   box-shadow: 0 1px 6px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.85);
-  transition: background var(--t-fast), border-color var(--t-fast),
-              box-shadow var(--t-fast), color var(--t-fast);
+  transition: background 240ms cubic-bezier(.4, 0, .2, 1), border-color 240ms cubic-bezier(.4, 0, .2, 1),
+              box-shadow 280ms cubic-bezier(.4, 0, .2, 1), color 200ms cubic-bezier(.4, 0, .2, 1),
+              transform 260ms cubic-bezier(.34, 1.1, .64, 1);
 }
 
 [data-theme="glass-light"] .folder-item-wrap > .folder-item {
@@ -1115,9 +1118,11 @@
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.55);
-  z-index: 500;
+  z-index: 9999;
   padding: 4px;
-  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 [data-theme="glass-dark"] .folder-select-dropdown .folder-select-option {
   padding: 8px 12px;
@@ -1147,9 +1152,11 @@
   border: 1px solid rgba(255,255,255,0.85);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-  z-index: 500;
+  z-index: 9999;
   padding: 4px;
-  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 [data-theme="glass-light"] .folder-select-dropdown .folder-select-option {
   padding: 8px 12px;
@@ -1166,6 +1173,35 @@
 [data-theme="glass-light"] .folder-select-dropdown .folder-select-option.selected {
   background: rgba(255,255,255,0.80);
   color: rgba(0,0,0,0.92);
+}
+
+/* ── Folder Select Button — Glass Override ───────────────────── */
+[data-theme="glass-dark"] .folder-select-btn {
+  background: rgba(14,14,14,0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.72);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+[data-theme="glass-dark"] .folder-select-btn:hover {
+  background: rgba(22,22,22,0.88);
+  border-color: rgba(255,255,255,0.20);
+  color: rgba(255,255,255,0.90);
+}
+
+[data-theme="glass-light"] .folder-select-btn {
+  background: rgba(245,245,245,0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.85);
+  color: rgba(0,0,0,0.65);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+[data-theme="glass-light"] .folder-select-btn:hover {
+  background: rgba(255,255,255,0.92);
+  border-color: rgba(0,0,0,0.18);
+  color: rgba(0,0,0,0.85);
 }
 
 /* ════════════════════════════════════════════════════════════════

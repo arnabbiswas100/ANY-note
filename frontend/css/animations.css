@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   STUDY-HUB — Animations & Keyframes
+   STUDY-HUB — Animations & Keyframes  (v2 — fluid edition)
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── Fade ───────────────────────────────────────────────────── */
@@ -15,42 +15,48 @@
 
 /* ── Scale ──────────────────────────────────────────────────── */
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(.94); }
-  to   { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: scale(.93) translateY(-5px); filter: blur(2px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0);    filter: blur(0px); }
 }
 
 @keyframes scaleOut {
-  from { opacity: 1; transform: scale(1); }
-  to   { opacity: 0; transform: scale(.94); }
+  from { opacity: 1; transform: scale(1)   translateY(0);    filter: blur(0px); }
+  to   { opacity: 0; transform: scale(.93) translateY(-5px); filter: blur(2px); }
 }
 
 /* ── Auth panel enter ───────────────────────────────────────── */
 @keyframes authIn {
-  from { opacity: 0; transform: translateY(20px) scale(.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(28px) scale(.96); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   filter: blur(0px); }
 }
 
-/* ── Note card enter ────────────────────────────────────────── */
+/* ── Note / PDF card enter ──────────────────────────────────── */
 @keyframes noteIn {
-  from { opacity: 0; transform: translateY(10px) scale(.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(14px) scale(.96); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   filter: blur(0px); }
+}
+
+/* ── View transition ────────────────────────────────────────── */
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(10px); filter: blur(3px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0px); }
 }
 
 /* ── Message enter ──────────────────────────────────────────── */
 @keyframes messageIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(10px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
 }
 
 /* ── Toast ──────────────────────────────────────────────────── */
 @keyframes toastIn {
-  from { opacity: 0; transform: translateX(20px) scale(.95); }
-  to   { opacity: 1; transform: translateX(0) scale(1); }
+  from { opacity: 0; transform: translateX(24px) scale(.94); filter: blur(2px); }
+  to   { opacity: 1; transform: translateX(0)    scale(1);   filter: blur(0px); }
 }
 
 @keyframes toastOut {
-  from { opacity: 1; transform: translateX(0) scale(1); }
-  to   { opacity: 0; transform: translateX(20px) scale(.95); }
+  from { opacity: 1; transform: translateX(0)    scale(1);   filter: blur(0px); }
+  to   { opacity: 0; transform: translateX(24px) scale(.94); filter: blur(2px); }
 }
 
 /* ── Spin ───────────────────────────────────────────────────── */
@@ -74,7 +80,7 @@
 
 /* ── Float pulse (chat icon) ────────────────────────────────── */
 @keyframes floatPulse {
-  0%, 100% { transform: translateY(0); opacity: .5; }
+  0%, 100% { transform: translateY(0);    opacity: .5; }
   50%       { transform: translateY(-8px); opacity: .7; }
 }
 
@@ -84,15 +90,56 @@
   30%            { transform: translateY(-5px); }
 }
 
-/* ── View transitions ───────────────────────────────────────── */
-.view {
-  animation: viewIn var(--t-base) ease;
+/* ── Modal enter ────────────────────────────────────────────── */
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(.93) translateY(18px); filter: blur(4px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0);    filter: blur(0px); }
 }
 
-@keyframes viewIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* ── Overlay in ─────────────────────────────────────────────── */
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
+
+/* ── Dropdown pop ───────────────────────────────────────────── */
+@keyframes dropdownIn {
+  from { opacity: 0; transform: scale(.95) translateY(-6px); filter: blur(2px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0);    filter: blur(0px); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW TRANSITION — slightly slower, blur sweep
+   ════════════════════════════════════════════════════════════════ */
+.view {
+  animation: viewIn 380ms cubic-bezier(.25, .46, .45, .94) both;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CARD HOVER FLOAT — micro continuous float on hover
+   ════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   MODAL — override base with blur-sweep entrance
+   ════════════════════════════════════════════════════════════════ */
+.modal-overlay {
+  animation: overlayIn 260ms cubic-bezier(.4, 0, .2, 1) both;
+}
+
+.modal {
+  animation: modalIn 400ms cubic-bezier(.34, 1.08, .64, 1) both;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STAGGER HELPERS — add .anim-stagger-N to grid children
+   ════════════════════════════════════════════════════════════════ */
+.anim-stagger-1  { animation-delay:  40ms; }
+.anim-stagger-2  { animation-delay:  80ms; }
+.anim-stagger-3  { animation-delay: 120ms; }
+.anim-stagger-4  { animation-delay: 160ms; }
+.anim-stagger-5  { animation-delay: 200ms; }
+.anim-stagger-6  { animation-delay: 240ms; }
+.anim-stagger-7  { animation-delay: 280ms; }
+.anim-stagger-8  { animation-delay: 320ms; }
 
 /* ── Reduced motion ─────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

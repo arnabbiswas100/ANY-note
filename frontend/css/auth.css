@@ -71,7 +71,7 @@
   padding: var(--sp-10) var(--sp-10);
   width: 100%;
   max-width: 420px;
-  animation: authIn var(--t-spring) forwards;
+  animation: authIn 520ms cubic-bezier(.34, 1.1, .64, 1) both;
 }
 
 /* ── Auth Logo ──────────────────────────────────────────────── */
@@ -111,7 +111,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  animation: fadeIn var(--t-base);
+  animation: fadeIn 320ms cubic-bezier(.4, 0, .2, 1) both;
 }
 
 .auth-title {
@@ -133,7 +133,7 @@
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 2px;
-  transition: opacity var(--t-fast);
+  transition: opacity 200ms cubic-bezier(.4, 0, .2, 1), color 200ms cubic-bezier(.4, 0, .2, 1);
 }
 
 .auth-switch a:hover {

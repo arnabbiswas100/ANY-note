@@ -343,9 +343,16 @@
             <div class="color-swatches" id="color-swatches"></div>
           </div>
         </div>
-        <select class="folder-select" id="note-folder-select">
+        <select class="folder-select" id="note-folder-select" style="display:none">
           <option value="">No folder</option>
         </select>
+        <div class="folder-select-custom folder-select-wrap" id="note-folder-select-custom">
+          <button class="folder-select-btn" id="note-folder-select-btn" type="button">
+            <span id="note-folder-select-label">No folder</span>
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="folder-select-dropdown hidden" id="note-folder-select-dropdown"></div>
+        </div>
         <button class="icon-btn close-btn" id="close-note-modal">✕</button>
       </div>
     </div>
