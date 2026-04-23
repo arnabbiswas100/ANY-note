@@ -20,24 +20,69 @@ const App = (() => {
   // Theme
   // ─────────────────────────────────────────────────────────────
 
-  const applyTheme = (theme) => {
-    document.documentElement.dataset.theme = theme;
-    const btn = el('theme-toggle');
-    const icon = btn?.querySelector('.theme-icon');
-    if (icon) icon.textContent = theme === 'dark' ? '🌚' : '🌝';
-    Storage.setTheme(theme);
+  // ── Theme state ─────────────────────────────────────────────
+  // style: 'minimal' | 'glass'
+  // mode:  'dark'    | 'light'
+  // Combined data-theme = style + '-' + mode
+  //   e.g. 'minimal-dark', 'glass-light'
+
+  const getThemeAttr = (style, mode) => style + '-' + mode;
+
+  const applyTheme = (style, mode) => {
+    const attr = getThemeAttr(style, mode);
+    document.documentElement.dataset.theme = attr;
+
+    // Update mode toggle icon
+    const modeBtn  = el('theme-mode-btn');
+    const modeIcon = modeBtn?.querySelector('.theme-mode-icon');
+    if (modeIcon) modeIcon.textContent = mode === 'dark' ? '🌚' : '🌝';
+
+    // Update style pill active state
+    document.querySelectorAll('.pill-option').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.style === style);
+    });
+
+    Storage.set('themeStyle', style);
+    Storage.set('themeMode',  mode);
   };
 
-  const toggleTheme = () => {
-    const current = document.documentElement.dataset.theme || 'dark';
-    applyTheme(current === 'dark' ? 'light' : 'dark');
+  const toggleMode = () => {
+    const style = Storage.get('themeStyle', 'minimal');
+    const mode  = Storage.get('themeMode',  'dark');
+    applyTheme(style, mode === 'dark' ? 'light' : 'dark');
+  };
+
+  const setStyle = (style) => {
+    const mode = Storage.get('themeMode', 'dark');
+    applyTheme(style, mode);
   };
 
   const initTheme = () => {
-    const saved = Storage.getTheme();
-    applyTheme(saved || 'dark');
-    el('theme-toggle')?.addEventListener('click', toggleTheme);
+    // Support legacy single-value saves ('dark'/'light'/'glass')
+    const legacyTheme = Storage.getTheme();
+    let style = Storage.get('themeStyle', null);
+    let mode  = Storage.get('themeMode',  null);
+
+    if (!style || !mode) {
+      // Migrate from legacy
+      if (legacyTheme === 'glass') { style = 'glass';   mode = 'dark'; }
+      else if (legacyTheme === 'light') { style = 'minimal'; mode = 'light'; }
+      else { style = 'minimal'; mode = 'dark'; }
+    }
+
+    applyTheme(style, mode);
+
+    // Mode toggle (moon/sun icon)
+    el('theme-mode-btn')?.addEventListener('click', toggleMode);
+
+    // Style pill (Minimal | Glass)
+    document.querySelectorAll('.pill-option').forEach(btn => {
+      btn.addEventListener('click', () => setStyle(btn.dataset.style));
+    });
   };
+
+  // keep toggleTheme in public API for any external callers
+  const toggleTheme = toggleMode;
 
   // ─────────────────────────────────────────────────────────────
   // Sidebar
@@ -274,7 +319,7 @@ const App = (() => {
     if (loggedIn) onLogin();
   };
 
-  return { init, switchView, toggleSidebar, toggleTheme };
+  return { init, switchView, toggleSidebar, toggleTheme, setStyle };
 })();
 
 /* ── Bootstrap ─────────────────────────────────────────────── */

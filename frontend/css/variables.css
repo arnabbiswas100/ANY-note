@@ -6,6 +6,7 @@
   /* ── Fonts ─────────────────────────────────────────── */
   --font-display: 'Syne', sans-serif;
   --font-body:    'DM Sans', sans-serif;
+  --font-glass:   'Cormorant Garamond', serif;
 
   /* ── Spacing ───────────────────────────────────────── */
   --sp-1:  4px;
@@ -45,7 +46,10 @@
   --sidebar-collapsed: 0px;
 }
 
-/* ── Dark Theme (default) ───────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   MINIMAL THEME — DARK MODE  (legacy [data-theme="dark"] kept for safety)
+   ════════════════════════════════════════════════════════════════ */
+[data-theme="minimal-dark"],
 [data-theme="dark"] {
   --bg:          #0f0f0f;
   --bg-2:        #161616;
@@ -73,7 +77,6 @@
   --success-dim: rgba(76,222,128,.15);
   --warning:     #f5a623;
 
-  /* note colors */
   --note-default: #1e1e1e;
   --note-red:     #2e1515;
   --note-orange:  #2a1e0e;
@@ -89,7 +92,10 @@
   --scrollbar-thumb: #2e2e2e;
 }
 
-/* ── Light Theme ────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   MINIMAL THEME — LIGHT MODE  (legacy [data-theme="light"] kept for safety)
+   ════════════════════════════════════════════════════════════════ */
+[data-theme="minimal-light"],
 [data-theme="light"] {
   --bg:          #f8f5f0;
   --bg-2:        #ffffff;
@@ -136,4 +142,106 @@
   --shadow-md: 0 4px 20px rgba(0,0,0,.10);
   --shadow-lg: 0 8px 40px rgba(0,0,0,.14);
   --shadow-xl: 0 16px 60px rgba(0,0,0,.18);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   GLASS THEME — DARK MODE
+   ════════════════════════════════════════════════════════════════ */
+[data-theme="glass-dark"] {
+  --bg:          #080808;
+  --bg-2:        rgba(20,20,20,0.6);
+  --bg-3:        rgba(255,255,255,0.055);
+  --bg-4:        rgba(255,255,255,0.09);
+  --bg-hover:    rgba(255,255,255,0.08);
+  --border:      rgba(255,255,255,0.09);
+  --border-2:    rgba(255,255,255,0.16);
+
+  --text:        #f2efea;
+  --text-2:      rgba(242,239,234,0.6);
+  --text-3:      rgba(242,239,234,0.32);
+  --text-inv:    #080808;
+
+  --accent:      #f2efea;
+  --accent-dim:  rgba(242,239,234,0.10);
+  --accent-glow: rgba(242,239,234,0.05);
+
+  --primary:     #f2efea;
+  --primary-fg:  #080808;
+
+  --danger:      #ff5858;
+  --danger-dim:  rgba(255,88,88,.15);
+  --success:     #4cde80;
+  --success-dim: rgba(76,222,128,.15);
+  --warning:     #f5a623;
+
+  --note-default: rgba(255,255,255,0.04);
+  --note-red:     rgba(255,80,80,0.07);
+  --note-orange:  rgba(255,150,60,0.07);
+  --note-yellow:  rgba(255,220,60,0.06);
+  --note-green:   rgba(60,220,120,0.06);
+  --note-teal:    rgba(60,200,200,0.06);
+  --note-blue:    rgba(60,120,255,0.07);
+  --note-purple:  rgba(150,60,255,0.07);
+  --note-pink:    rgba(255,60,150,0.07);
+  --note-gray:    rgba(180,180,180,0.05);
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(255,255,255,0.11);
+
+  --shadow-xs: 0 1px 3px rgba(0,0,0,.35);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.45);
+  --shadow-md: 0 4px 20px rgba(0,0,0,.55);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.6);
+  --shadow-xl: 0 16px 60px rgba(0,0,0,.65);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   GLASS THEME — LIGHT MODE
+   ════════════════════════════════════════════════════════════════ */
+[data-theme="glass-light"] {
+  --bg:          #e8e8e8;
+  --bg-2:        rgba(255,255,255,0.45);
+  --bg-3:        rgba(255,255,255,0.3);
+  --bg-4:        rgba(255,255,255,0.5);
+  --bg-hover:    rgba(255,255,255,0.55);
+  --border:      rgba(0,0,0,0.08);
+  --border-2:    rgba(0,0,0,0.14);
+
+  --text:        #111111;
+  --text-2:      rgba(17,17,17,0.6);
+  --text-3:      rgba(17,17,17,0.38);
+  --text-inv:    #f8f8f8;
+
+  --accent:      #111111;
+  --accent-dim:  rgba(17,17,17,0.08);
+  --accent-glow: rgba(17,17,17,0.04);
+
+  --primary:     #111111;
+  --primary-fg:  #f8f8f8;
+
+  --danger:      #d93636;
+  --danger-dim:  rgba(217,54,54,.12);
+  --success:     #28a858;
+  --success-dim: rgba(40,168,88,.12);
+  --warning:     #d4820a;
+
+  --note-default: rgba(255,255,255,0.5);
+  --note-red:     rgba(220,80,80,0.08);
+  --note-orange:  rgba(220,130,50,0.08);
+  --note-yellow:  rgba(200,180,40,0.08);
+  --note-green:   rgba(40,180,100,0.08);
+  --note-teal:    rgba(40,170,170,0.08);
+  --note-blue:    rgba(40,100,220,0.08);
+  --note-purple:  rgba(120,40,220,0.08);
+  --note-pink:    rgba(220,40,130,0.08);
+  --note-gray:    rgba(120,120,120,0.08);
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(0,0,0,0.14);
+
+  --shadow-xs: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.12);
+  --shadow-md: 0 4px 20px rgba(0,0,0,.16);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.20);
+  --shadow-xl: 0 16px 60px rgba(0,0,0,.24);
 }
