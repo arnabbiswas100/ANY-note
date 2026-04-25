@@ -4,9 +4,10 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 // Build model list: prefer env-configured model, then fallbacks
 const FALLBACK_MODELS = [
-  'openrouter/free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'google/gemma-3-12b-it:free',
+  'meta-llama/llama-3.3-70b-instruct:free',     // Strong 70B model
+  'google/gemma-3-4b-it:free',                  // Lightweight Google model
+  'nvidia/nemotron-3-super-120b-a12b:free',     // NVIDIA 120B MoE
+  'openrouter/free',                            // Last resort: auto-router picks any free model
 ];
 
 const getModels = () => {
