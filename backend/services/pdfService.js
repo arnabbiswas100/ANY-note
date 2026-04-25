@@ -1,39 +1,58 @@
 const fs = require('fs');
 
 /**
- * Shared helper: extract text from a PDF buffer using pdfjs-dist directly.
- * Uses the legacy ESM build with worker disabled for Node.js compatibility.
+ * Shared helper: extract text from a PDF buffer using a two-level fallback.
+ * 1. Primary:  unpdf (with mergePages: true to get a single string)
+ * 2. Fallback: pdfjs-dist (Mozilla PDF.js, legacy build for Node.js via dynamic import)
  *
  * @param {Buffer} buffer - The raw PDF file bytes
  * @returns {Promise<{ text: string, pageCount: number }>}
  */
 const extractTextFromBuffer = async (buffer) => {
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  // --- Attempt 1: unpdf ---
+  try {
+    const { extractText: unpdfExtract, getDocumentProxy } = await import('unpdf');
+    const doc = await getDocumentProxy(new Uint8Array(buffer));
+    const result = await unpdfExtract(doc, { mergePages: true });
 
-  // Disable worker — there is no Web Worker in Node.js
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+    const text = (typeof result.text === 'string' ? result.text : Array.isArray(result.text) ? result.text.join('\n') : '').replace(/\0/g, '').trim();
+    const pageCount = result.totalPages || 0;
 
-  const loadingTask = pdfjsLib.getDocument({
-    data: new Uint8Array(buffer),
-    disableWorker: true,
-    useSystemFonts: true,
-  });
-  const doc = await loadingTask.promise;
+    if (text.length > 0 && pageCount > 0) {
+      console.log('[PDF] Extracted with unpdf');
+      return { text, pageCount };
+    }
 
-  const pageTexts = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    const pageStr = content.items.map(item => item.str).join(' ');
-    pageTexts.push(pageStr);
+    // unpdf returned empty / zero-page — treat as failure and fall through
+    console.warn('[PDF] unpdf returned empty result, falling back to pdfjs-dist');
+  } catch (unpdfErr) {
+    console.warn('[PDF] unpdf failed, falling back to pdfjs-dist:', unpdfErr.message);
   }
 
-  // Strip null bytes (0x00) — PDFs often contain them but PostgreSQL rejects them in UTF-8 columns
-  const text = pageTexts.join('\n').replace(/\0/g, '').trim();
-  const pageCount = doc.numPages;
+  // --- Attempt 2: pdfjs-dist (legacy build, ESM-only in v5, use dynamic import) ---
+  try {
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
-  console.log(`[PDF] Extracted with pdfjs-dist (${pageCount} pages, ${text.length} chars)`);
-  return { text, pageCount };
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer), disableWorker: true });
+    const doc = await loadingTask.promise;
+
+    const pageTexts = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      const pageStr = content.items.map(item => item.str).join(' ');
+      pageTexts.push(pageStr);
+    }
+
+    const text = pageTexts.join('\n').replace(/\0/g, '').trim();
+    const pageCount = doc.numPages;
+
+    console.log('[PDF] Extracted with pdfjs-dist');
+    return { text, pageCount };
+  } catch (pdfjsErr) {
+    throw new Error(`Both PDF extractors failed. pdfjs-dist error: ${pdfjsErr.message}`);
+  }
 };
 
 const extractText = async (filePath) => {
