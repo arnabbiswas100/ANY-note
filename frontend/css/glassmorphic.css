@@ -422,7 +422,6 @@
   -webkit-backdrop-filter: blur(8px);
 }
 
-/* Dropdowns */
 [data-theme="glass-dark"] .user-dropdown,
 [data-theme="glass-dark"] .folder-context-menu,
 [data-theme="glass-dark"] .color-picker-popup {
@@ -432,12 +431,26 @@
   border: 1px solid rgba(255,255,255,0.10);
   box-shadow: 0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
 }
+[data-theme="glass-dark"] .chat-attach-menu {
+  background: rgba(14,14,14,0.94);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+}
 [data-theme="glass-light"] .user-dropdown,
 [data-theme="glass-light"] .folder-context-menu,
 [data-theme="glass-light"] .color-picker-popup {
   background: rgba(245,245,245,0.80);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.85);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+[data-theme="glass-light"] .chat-attach-menu {
+  background: rgba(245,245,245,0.94);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
   border: 1px solid rgba(255,255,255,0.85);
   box-shadow: 0 8px 40px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.9);
 }
