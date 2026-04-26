@@ -280,18 +280,34 @@ const Chat = (() => {
     el2.className = 'message-wrap assistant typing-wrap';
     el2.id = 'typing-indicator';
     el2.innerHTML = `
-      <div class="message-bubble ai-bubble shimmer-bubble">
-        <div class="shimmer-line shimmer-line--long"></div>
-        <div class="shimmer-line shimmer-line--mid"></div>
-        <div class="shimmer-line shimmer-line--short"></div>
+      <div class="message-bubble ai-bubble thinking-bubble">
+        <span class="ai-label">Study-Hub AI</span>
+        <span class="thinking-text">Thinking...</span>
       </div>
     `;
     list?.appendChild(el2);
     scrollToBottom();
+
+    // Cycle through status texts
+    const phases = ['Thinking...', 'Analyzing...', 'Composing...', 'Reviewing...'];
+    let idx = 0;
+    const textEl = el2.querySelector('.thinking-text');
+    el2._thinkingInterval = setInterval(() => {
+      idx = (idx + 1) % phases.length;
+      if (textEl) {
+        textEl.classList.add('thinking-text--fade');
+        setTimeout(() => {
+          textEl.textContent = phases[idx];
+          textEl.classList.remove('thinking-text--fade');
+        }, 250);
+      }
+    }, 2500);
+
     return el2;
   };
 
   const removeTypingIndicator = (el2) => {
+    if (el2?._thinkingInterval) clearInterval(el2._thinkingInterval);
     el2?.remove();
   };
 

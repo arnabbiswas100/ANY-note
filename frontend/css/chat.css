@@ -189,31 +189,32 @@
   background: var(--bg-3);
 }
 
-/* ── Shimmer skeleton indicator ─────────────────────────────── */
-.shimmer-bubble {
+/* ── Thinking text indicator ────────────────────────────────── */
+.thinking-bubble {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   padding: var(--sp-3) var(--sp-4);
-  min-width: 180px;
+  min-width: 140px;
 }
 
-.shimmer-line {
-  height: 10px;
-  border-radius: var(--r-full);
-  background: linear-gradient(
-    90deg,
-    var(--bg-4) 25%,
-    var(--bg-hover) 50%,
-    var(--bg-4) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
+.thinking-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
+  font-style: italic;
+  transition: opacity 250ms ease;
+  animation: thinkingPulse 2s ease-in-out infinite;
 }
 
-.shimmer-line--long  { width: 100%; }
-.shimmer-line--mid   { width: 72%; }
-.shimmer-line--short { width: 48%; }
+.thinking-text--fade {
+  opacity: 0;
+}
+
+@keyframes thinkingPulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
 
 /* ── Chat Input Bar ─────────────────────────────────────────── */
 .chat-input-bar {
