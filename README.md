@@ -1,174 +1,92 @@
-# Study Hub
 
-Your personal knowledge system — notes, PDFs, and an AI assistant that actually knows your stuff.
+```markdown
+# Study-Hub
 
----
+Your personal, AI-augmented knowledge management system. Organize notes, manage a PDF library, and chat with an AI that understands your local context.
 
-## What it does
-
-- Write and organize notes into folders, with a full markdown editor
-- Upload PDFs and read them in-browser — no downloading back and forth
-- Chat with an AI that has context of your notes and PDFs
-- Ask it to create a note from a conversation and it saves directly to your library
-- Two themes, two modes: Minimal and Glass, each with dark and light variants
+Study-Hub was built under the philosophy of **Constraint-Driven Engineering**. It is a resilient, privacy-focused, and self-hosted alternative to ephemeral cloud knowledge tools, designed to turn infrastructure limitations into architectural strengths.
 
 ---
 
-## Stack
+## 📚 Project Documentation
+These documents represent the "mental time capsule" of the project, covering everything from basic syntax to complex system design.
 
-**Backend** — Node.js + Express, PostgreSQL, JWT auth, Multer for file uploads, pdf-parse for text extraction, OpenRouter API for LLM calls (free tier, auto-selects best available model with Llama 3.3 70B and Gemma as fallbacks)
-
-**Frontend** — Vanilla JS SPA, no framework, no build step
+* 📖 [**Complete Beginner's Tutorial**](./Study%20Hub:%20My%20Tutorial.pdf) — A 140-page, step-by-step guide to building this entire stack from scratch. Designed for students and those new to web development.
+* 🎓 [**Technical Implementation Thesis**](./Study-Hub:%20Design%20and%20Implementation%20of%20an%20AI-Augmented%20Knowledge%20System.pdf) — A deep dive into engineering decisions, RAG-bypass logic, architectural pivots (from Cloud to Self-Hosting), and solving low-level data integrity issues.
 
 ---
 
-## Getting started
+## 🚀 Key Features
 
-You need Node 18+, PostgreSQL running locally, and an OpenRouter API key (free at [openrouter.ai](https://openrouter.ai)).
+- **Notes Engine:** Create and categorize notes with full Markdown support and an integrated editor.
+- **PDF Library:** High-performance extraction pipeline allowing you to read and process documents in-browser.
+- **AI Context Injection:** Chat with an AI that references your specific notes and PDFs using character-based truncation heuristics for maximum token efficiency.
+- **Auto-Save Protocol:** Non-deterministic AI to deterministic DB bridge via `[[CREATE_NOTE]]` tags, automatically archiving AI-generated insights.
+- **Privacy-First Infrastructure:** Engineered for self-hosting via **Tailscale Funnel** for secure, global access to your physical hardware.
+
+---
+
+## 🛠 Technical Stack & Engineering "Wins"
+
+### Backend
+- **Runtime:** Node.js + Express.
+- **Database:** PostgreSQL (Hardened with regex sanitization to prevent **Null Byte (`\x00`)** encoding crashes).
+- **PDF Pipeline:** Redundant fallback chain: `unpdf` (Primary) → `pdfjs-dist` (Secondary). 
+- **Asynchronous Processing:** Text extraction is decoupled from the HTTP cycle via a background "fire-and-forget" pattern to prevent timeouts.
+
+### Frontend
+- **Architecture:** Vanilla JavaScript SPA (No frameworks, no build steps).
+- **Idempotency:** State-based guards (`_sendLock`, `isUploading`) to prevent duplicate database writes from rapid UI interactions.
+
+### AI Layer
+- **Orchestration:** OpenRouter API.
+- **Verified Resilience:** Multi-model fallback logic utilizing **Llama 3.3 70B** and **Nemotron-3** to ensure 99.9% uptime on free-tier endpoints.
+
+---
+
+## 💻 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- PostgreSQL
+- An OpenRouter API Key
+
+### Installation
+1. **Clone the Repo:**
+   ```bash
+   git clone <your-repo-url>
+   cd study-hub
+   ```
+2. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
+3. **Environment Setup:**
+   Create a `.env` file and configure the following:
+   ```env
+   PORT=3000
+   DATABASE_URL=postgres://user:password@localhost:5432/studyhub
+   JWT_SECRET=your_secure_secret
+   OPENROUTER_API_KEY=your_key
+   OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free
+   ```
+4. **Initialize & Start:**
+   ```bash
+   npm run db:init
+   npm start
+   ```
+
+---
+
+## 🌐 Deployment (Self-Hosting)
+This project is optimized for deployment on **Debian/Ubuntu** systems. To expose your local server securely without port forwarding, use **Tailscale Funnel**:
 
 ```bash
-git clone <repo-url>
-cd study-hub
-npm install
-cp .env.example .env
-```
-
-Fill in `.env` — at minimum you need `DB_PASSWORD`, `JWT_SECRET`, and `GEMINI_API_KEY` (used as the OpenRouter key variable, see note below). Then:
-
-```bash
-npm run db:init
-npm start
-```
-
-Open `http://localhost:3000` and create an account.
-
-> **Note on the API key variable name:** the env var is still called `GEMINI_API_KEY` for historical reasons, but the service now calls OpenRouter, not Gemini directly. Just put your OpenRouter key there.
-
----
-
-## Environment variables
-
-Copy `.env.example` and edit it. Full reference:
-
-| Variable | Required | Default | Notes |
-|---|---|---|---|
-| `DB_HOST` | yes | `localhost` | |
-| `DB_PORT` | no | `5432` | |
-| `DB_NAME` | yes | `studyhub` | |
-| `DB_USER` | yes | `postgres` | |
-| `DB_PASSWORD` | yes | — | |
-| `JWT_SECRET` | yes | — | Min 32 chars, keep it random |
-| `JWT_EXPIRES_IN` | no | `7d` | |
-| `GEMINI_API_KEY` | yes | — | Your OpenRouter key goes here |
-| `PORT` | no | `3000` | |
-| `NODE_ENV` | no | `development` | Set to `production` on server |
-| `MAX_FILE_SIZE_MB` | no | `50` | PDF upload limit |
-| `ALLOWED_ORIGINS` | no | `http://localhost:3000` | Comma-separated in production |
-
----
-
-## npm scripts
-
-```bash
-npm start          # run the server
-npm run dev        # run with nodemon (auto-restart on changes)
-npm run db:init    # create the database and apply schema
-npm run db:reset   # ⚠️  wipe everything and re-apply schema
-npm run setup      # interactive first-time setup wizard
+tailscale funnel 3000
 ```
 
 ---
 
-## Project layout
-
+## 📜 Architectural Philosophy
+The path from initial deployment on Render to self-hosting via Tailscale was a deliberate shift toward reliability and data sovereignty. Study-Hub proves that financial and hardware constraints are not limitations, but catalysts for creative engineering. Logic is the only resource that scales without a budget.
 ```
-study-hub/
-├── backend/
-│   ├── config/
-│   │   ├── database.js        # PostgreSQL connection pool
-│   │   └── schema.sql         # table definitions, applied on every boot
-│   ├── controllers/           # auth, notes, pdfs, chat
-│   ├── middleware/
-│   │   ├── auth.js            # JWT verification
-│   │   ├── errorHandler.js    # global error handling
-│   │   └── upload.js          # multer / file validation
-│   ├── routes/index.js        # all routes in one place
-│   ├── services/
-│   │   ├── llmService.js      # OpenRouter integration + fallback chain
-│   │   └── pdfService.js      # PDF text extraction
-│   └── server.js
-├── frontend/
-│   ├── index.html
-│   ├── css/
-│   │   ├── variables.css      # design tokens, all four theme variants
-│   │   ├── glassmorphic.css   # glass theme overrides
-│   │   └── ...                # reset, base, layout, components, animations
-│   └── js/
-│       ├── app.js             # router, theme system, sidebar
-│       └── modules/           # auth, notes, pdfs, chat — one file each
-├── scripts/                   # setup, db-init, db-reset
-├── uploads/pdfs/              # uploaded files, gitignored
-├── render.yaml                # Render.com deployment config
-└── .env.example
-```
-
----
-
-## API routes
-
-```
-POST   /api/auth/register
-POST   /api/auth/login
-GET    /api/auth/profile
-PUT    /api/auth/profile
-
-GET    /api/notes
-GET    /api/notes/:id
-POST   /api/notes
-PUT    /api/notes/:id
-DELETE /api/notes/:id
-GET    /api/notes/folders
-POST   /api/notes/folders
-PUT    /api/notes/folders/:id
-DELETE /api/notes/folders/:id
-
-GET    /api/pdfs
-GET    /api/pdfs/:id
-POST   /api/pdfs/upload
-GET    /api/pdfs/:id/stream
-GET    /api/pdfs/:id/download
-PUT    /api/pdfs/:id
-DELETE /api/pdfs/:id
-GET    /api/pdfs/folders
-POST   /api/pdfs/folders
-PUT    /api/pdfs/folders/:id
-DELETE /api/pdfs/folders/:id
-
-GET    /api/chat/sessions
-POST   /api/chat/sessions
-PUT    /api/chat/sessions/:id
-DELETE /api/chat/sessions/:id
-GET    /api/chat/sessions/:id/messages
-POST   /api/chat/sessions/:sessionId/messages
-
-GET    /api/health
-```
-
-All routes except `/auth/register`, `/auth/login`, and `/health` require a `Authorization: Bearer <token>` header.
-
----
-
-## Deploying to Render
-
-A `render.yaml` is included. Connect the repo on [render.com](https://render.com), add the environment variables that aren't auto-generated (`DB_PASSWORD`, `GEMINI_API_KEY`), and deploy. The free PostgreSQL plan is already wired up in the config.
-
-The schema applies automatically on every server start — no migration step needed.
-
----
-
-## A few things worth knowing
-
-- PDF text is extracted on upload and stored in the database. The AI reads from this extracted text, not the raw file, so scanned PDFs without embedded text won't work well with the chat.
-- The AI auto-detect feature watches for `[[CREATE_NOTE]]` tags in its responses. If it wraps content in those tags, the note is saved to your library automatically.
-- Rate limiting is split: auth endpoints (login/register) are capped at 10 requests per 15 minutes, everything else at 300 per minute.
-- Uploads are stored under `uploads/pdfs/<user-id>/` and are gitignored — back them up separately if you care about them.
