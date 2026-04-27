@@ -513,32 +513,97 @@ window.PDFs = (() => {
   // Viewer
   // ─────────────────────────────────────────────────────────────
 
-  const openViewer = (pdf) => {
-    const overlay = el('pdf-viewer-overlay');
-    const iframe  = el('pdf-iframe');
-    const title   = el('pdf-viewer-title');
-    const dlBtn   = el('pdf-download-btn');
-    const chatBtn = el('pdf-chat-btn');
-    if (!overlay || !iframe) return;
+  // ── PDF.js renderer ───────────────────────────────────────────
+  // Set the worker source once (from the same CDN version)
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
 
+  let _currentPdfDoc = null; // track for cleanup
+
+  const openViewer = async (pdf) => {
+    const overlay    = el('pdf-viewer-overlay');
+    const container  = el('pdf-canvas-container');
+    const loading    = el('pdf-loading');
+    const pageCounter = el('pdf-page-counter');
+    const title      = el('pdf-viewer-title');
+    const dlBtn      = el('pdf-download-btn');
+    const chatBtn    = el('pdf-chat-btn');
+    if (!overlay || !container) return;
+
+    // Show modal immediately with loading state
     title.textContent = pdf.original_name || pdf.filename || 'PDF';
-    iframe.src = API.pdfs.streamUrl(pdf.id);
+    container.innerHTML = '';
+    pageCounter.classList.add('hidden');
+    loading.classList.remove('hidden');
+    show(overlay);
+    document.body.style.overflow = 'hidden';
 
-    dlBtn.onclick = () => downloadPDF(pdf);
+    dlBtn.onclick  = () => downloadPDF(pdf);
     chatBtn.onclick = () => {
       closeViewer();
       window.dispatchEvent(new CustomEvent('chat:attach-pdf', { detail: { pdf } }));
     };
 
-    show(overlay);
-    document.body.style.overflow = 'hidden';
+    try {
+      if (!window.pdfjsLib) throw new Error('PDF.js not loaded');
+
+      // Fetch the PDF as binary data using the authenticated stream URL
+      const response = await fetch(API.pdfs.streamUrl(pdf.id));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Load with PDF.js
+      const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdfDoc = await loadingTask.promise;
+      _currentPdfDoc = pdfDoc;
+
+      loading.classList.add('hidden');
+      pageCounter.textContent = `${pdfDoc.numPages} page${pdfDoc.numPages !== 1 ? 's' : ''}`;
+      pageCounter.classList.remove('hidden');
+
+      // Calculate scale based on container width
+      const containerWidth = container.clientWidth - 32; // subtract padding
+
+      // Render all pages sequentially
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const page = await pdfDoc.getPage(pageNum);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(containerWidth / baseViewport.width, 2.5);
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width  = '100%';
+        canvas.style.height = 'auto';
+
+        container.appendChild(canvas);
+
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport }).promise;
+      }
+    } catch (err) {
+      loading.classList.add('hidden');
+      container.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--text-3)">
+        <div style="font-size:2rem;margin-bottom:1rem">📄</div>
+        <div>Could not render PDF.</div>
+        <div style="font-size:12px;margin-top:.5rem;opacity:.6">${err.message}</div>
+      </div>`;
+    }
   };
 
   const closeViewer = () => {
-    const overlay = el('pdf-viewer-overlay');
-    const iframe  = el('pdf-iframe');
+    const overlay   = el('pdf-viewer-overlay');
+    const container = el('pdf-canvas-container');
+    const loading   = el('pdf-loading');
+    const pageCounter = el('pdf-page-counter');
     if (overlay) hide(overlay);
-    if (iframe)  { iframe.src = ''; }
+    if (container) container.innerHTML = '';
+    if (loading)  loading.classList.remove('hidden');
+    if (pageCounter) pageCounter.classList.add('hidden');
+    if (_currentPdfDoc) { _currentPdfDoc.destroy(); _currentPdfDoc = null; }
     document.body.style.overflow = '';
   };
 

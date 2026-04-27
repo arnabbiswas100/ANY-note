@@ -26,7 +26,7 @@ app.use(helmet({
       imgSrc: ["'self'", "data:", "blob:"],
       connectSrc: ["'self'"],
       frameSrc: ["'self'", "blob:"],
-      workerSrc: ["'self'", "blob:"],
+      workerSrc: ["'self'", "blob:", "https://cdnjs.cloudflare.com"],
       objectSrc: ["'self'", "blob:"],
     }
   }
