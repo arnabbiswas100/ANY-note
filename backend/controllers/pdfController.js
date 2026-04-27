@@ -194,7 +194,7 @@ const uploadPdf = async (req, res, next) => {
     if (!req.file) return res.status(400).json({ success: false, error: 'No PDF file provided' });
 
     const { folder_id } = req.body;
-    const filePath = req.file.path;
+    const filePath = path.resolve(req.file.path);
     const filename = req.file.filename;
     const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
     const fileSize = req.file.size;

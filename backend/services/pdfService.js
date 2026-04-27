@@ -1,15 +1,34 @@
 const fs = require('fs');
+const pdfParse = require('pdf-parse');
 
 /**
- * Shared helper: extract text from a PDF buffer using a two-level fallback.
- * 1. Primary:  unpdf (with mergePages: true to get a single string)
- * 2. Fallback: pdfjs-dist (Mozilla PDF.js, legacy build for Node.js via dynamic import)
+ * Shared helper: extract text from a PDF buffer using a three-level fallback.
+ * 1. Primary:  pdf-parse (CommonJS, works reliably on Render)
+ * 2. Fallback: unpdf (with mergePages: true to get a single string)
+ * 3. Fallback: pdfjs-dist (Mozilla PDF.js, legacy build for Node.js via dynamic import)
  *
  * @param {Buffer} buffer - The raw PDF file bytes
  * @returns {Promise<{ text: string, pageCount: number }>}
  */
 const extractTextFromBuffer = async (buffer) => {
-  // --- Attempt 1: unpdf ---
+  // --- Attempt 1: pdf-parse ---
+  try {
+    const result = await pdfParse(buffer);
+    const text = (result.text || '').replace(/\0/g, '').trim();
+    const pageCount = result.numpages || 0;
+
+    if (text.length > 0 && pageCount > 0) {
+      console.log('[PDF] Extracted with pdf-parse');
+      return { text, pageCount };
+    }
+
+    // pdf-parse returned empty text or zero pages — fall through
+    console.warn('[PDF] pdf-parse returned empty result, falling back to unpdf');
+  } catch (pdfParseErr) {
+    console.warn('[PDF] pdf-parse failed, falling back to unpdf:', pdfParseErr.message);
+  }
+
+  // --- Attempt 2: unpdf ---
   try {
     const { extractText: unpdfExtract, getDocumentProxy } = await import('unpdf');
     const doc = await getDocumentProxy(new Uint8Array(buffer));
@@ -29,7 +48,7 @@ const extractTextFromBuffer = async (buffer) => {
     console.warn('[PDF] unpdf failed, falling back to pdfjs-dist:', unpdfErr.message);
   }
 
-  // --- Attempt 2: pdfjs-dist (legacy build, ESM-only in v5, use dynamic import) ---
+  // --- Attempt 3: pdfjs-dist (legacy build, ESM-only in v5, use dynamic import) ---
   try {
     const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
     pdfjsLib.GlobalWorkerOptions.workerSrc = '';
