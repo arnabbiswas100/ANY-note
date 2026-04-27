@@ -439,6 +439,8 @@
   .note-split-editor[data-mobile-mode="edit"] .note-content-input {
     display: block;
     flex: 1;
+    min-height: 0;
+    height: 100%;
   }
 
   .note-split-editor[data-mobile-mode="edit"] .note-markdown-preview {
