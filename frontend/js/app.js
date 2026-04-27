@@ -3,7 +3,7 @@
    SPA router · theme toggle · sidebar · global search · init
    ═══════════════════════════════════════════════════════════════ */
 
-const App = (() => {
+window.App = (() => {
   const { toast, show, hide, debounce } = Helpers;
 
   // ── State ─────────────────────────────────────────────────────
@@ -291,6 +291,11 @@ const App = (() => {
     if (state.initialized) return;
     state.initialized = true;
 
+    // Restore saved theme (landing page may have forced glass-light)
+    const style = Storage.get('themeStyle', 'minimal');
+    const mode  = Storage.get('themeMode',  'dark');
+    applyTheme(style, mode);
+
     try {
       // Init all modules in parallel where safe
       await Promise.all([
@@ -324,6 +329,12 @@ const App = (() => {
   const init = async () => {
     initTheme();
 
+    // Init landing page module (Begin button handler)
+    Landing.init();
+
+    // Init export module (Export Notes button in dropdown)
+    ExportNotes.init();
+
     // Wire auth events
     window.addEventListener('auth:login',  () => onLogin());
     window.addEventListener('auth:logout', () => onLogout());
@@ -333,7 +344,13 @@ const App = (() => {
 
     // Try to restore existing session
     const loggedIn = await Auth.checkSession();
-    if (loggedIn) onLogin();
+    if (loggedIn) {
+      // Restore saved theme (landing page may have forced glass-light)
+      const style = Storage.get('themeStyle', 'minimal');
+      const mode  = Storage.get('themeMode',  'dark');
+      applyTheme(style, mode);
+      onLogin();
+    }
   };
 
   return { init, switchView, toggleSidebar, toggleTheme, setStyle };

@@ -2,7 +2,7 @@
    STUDY-HUB — API Utility (fetch wrapper with JWT auth)
    ═══════════════════════════════════════════════════════════════ */
 
-const API = (() => {
+window.API = (() => {
   const BASE = '/api';
 
   // ── Core request ────────────────────────────────────────────
@@ -96,10 +96,12 @@ const API = (() => {
 
   // ── Auth ─────────────────────────────────────────────────────
   const auth = {
-    login:    (body) => post('/auth/login',    body),
-    register: (body) => post('/auth/register', body),
-    profile:  ()     => get('/auth/profile'),
-    update:   (body) => put('/auth/profile',   body),
+    login:          (body) => post('/auth/login',           body),
+    register:       (body) => post('/auth/register',        body),
+    forgotPassword: (body) => post('/auth/forgot-password', body),
+    resetPassword:  (body) => post('/auth/reset-password',  body),
+    profile:        ()     => get('/auth/profile'),
+    update:         (body) => put('/auth/profile',          body),
   };
 
   // ── Notes ────────────────────────────────────────────────────
@@ -146,6 +148,7 @@ const API = (() => {
     deleteSession:  (id)         => del(`/chat/sessions/${id}`),
     getMessages:    (id)         => get(`/chat/sessions/${id}/messages`),
     sendMessage:    (id, body)   => post(`/chat/sessions/${id}/messages`, body),
+    searchSessions: (q)          => get(`/chat/sessions/search?q=${encodeURIComponent(q)}`),
   };
 
   return { get, post, put, patch, del, upload, auth, notes, pdfs, chat };

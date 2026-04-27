@@ -18,8 +18,114 @@
   <link rel="stylesheet" href="/css/auth.css" />
   <link rel="stylesheet" href="/css/animations.css" />
   <link rel="stylesheet" href="/css/glassmorphic.css" />
+  <link rel="stylesheet" href="/css/landing.css" />
+  <!-- JSZip — used by Export Notes (client-side ZIP generation) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
 </head>
 <body>
+
+<!-- ── LANDING PAGE ────────────────────────────────────────────── -->
+<div id="landing-page" class="hidden">
+  <!-- Animated background -->
+  <div class="landing-bg"></div>
+
+  <!-- Floating decorative orbs -->
+  <div class="landing-orb landing-orb--1"></div>
+  <div class="landing-orb landing-orb--2"></div>
+  <div class="landing-orb landing-orb--3"></div>
+
+  <div class="landing-content">
+
+    <!-- ── HERO SECTION ────────────────────────────────────── -->
+    <section class="landing-hero">
+      <div class="landing-hero-card">
+        <div class="landing-brand">
+          <span class="brand-study">Study</span>
+          <span class="brand-hub">Hub</span>
+        </div>
+        <p class="landing-tagline">
+          Your AI-powered personal knowledge system.
+          Organize notes, manage PDFs, and chat with AI — all in one beautiful place.
+        </p>
+      </div>
+      <div class="landing-scroll-hint">
+        <span>Explore Features</span>
+        <div class="scroll-arrow"></div>
+      </div>
+    </section>
+
+    <!-- ── FEATURES SECTION ────────────────────────────────── -->
+    <section class="landing-features">
+      <h2 class="landing-features-title">Everything you need to study smarter</h2>
+      <p class="landing-features-subtitle">
+        A clean, distraction-free workspace designed for deep focus and effortless organization.
+      </p>
+
+      <!-- Feature 1: Notes -->
+      <div class="landing-feature">
+        <div class="landing-feature-text">
+          <span class="landing-feature-icon">✏️</span>
+          <h3 class="landing-feature-name">Smart Notes</h3>
+          <p class="landing-feature-desc">
+            Capture ideas with rich Markdown support, organize them into nested folders with custom colors and icons, and find anything instantly with full-text search. Pin your most important notes for quick access.
+          </p>
+        </div>
+        <div class="landing-feature-visual">
+          <div class="landing-screenshot-wrap">
+            <img class="landing-screenshot" src="/assets/screenshots/notes.png" alt="Study Hub Notes — organized grid of notes with folders" loading="lazy" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 2: PDFs -->
+      <div class="landing-feature">
+        <div class="landing-feature-text">
+          <span class="landing-feature-icon">📄</span>
+          <h3 class="landing-feature-name">PDF Library</h3>
+          <p class="landing-feature-desc">
+            Upload and organize your study materials in a beautiful visual library. Drag-and-drop uploads, folder management with nested hierarchies, and AI-powered text extraction make your PDFs searchable and actionable.
+          </p>
+        </div>
+        <div class="landing-feature-visual">
+          <div class="landing-screenshot-wrap">
+            <img class="landing-screenshot" src="/assets/screenshots/pdfs.png" alt="Study Hub PDF Library — visual grid of uploaded PDFs" loading="lazy" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 3: AI Chat -->
+      <div class="landing-feature">
+        <div class="landing-feature-text">
+          <span class="landing-feature-icon">✦</span>
+          <h3 class="landing-feature-name">AI Chat</h3>
+          <p class="landing-feature-desc">
+            Ask anything about your notes and PDFs. Study-Hub AI understands your materials and helps you summarize, create flashcards, explore key topics, and learn faster — all in a natural conversation.
+          </p>
+        </div>
+        <div class="landing-feature-visual">
+          <div class="landing-screenshot-wrap">
+            <img class="landing-screenshot" src="/assets/screenshots/chat.png" alt="Study Hub AI Chat — conversational AI assistant" loading="lazy" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CTA SECTION ─────────────────────────────────────── -->
+    <section class="landing-cta">
+      <h2 class="landing-cta-text">Ready to study smarter?</h2>
+      <p class="landing-cta-sub">Join Study Hub and transform how you learn.</p>
+      <button class="landing-begin-btn" id="landing-begin-btn">
+        Begin
+        <span class="btn-arrow">→</span>
+      </button>
+    </section>
+
+    <!-- ── FOOTER ──────────────────────────────────────────── -->
+    <div class="landing-footer">
+      Built with care · Study Hub
+    </div>
+  </div>
+</div>
 
 <!-- ── AUTH SCREEN ─────────────────────────────────────────────── -->
 <div id="auth-screen" class="auth-screen hidden">
@@ -54,6 +160,7 @@
         <span class="btn-loader hidden">⟳</span>
       </button>
       <p class="auth-switch">Don't have an account? <a href="#" id="show-register">Create one</a></p>
+      <p class="auth-switch"><a href="#" id="show-forgot">Forgot password?</a></p>
     </form>
 
     <!-- Register Form -->
@@ -80,6 +187,42 @@
         <span class="btn-loader hidden">⟳</span>
       </button>
       <p class="auth-switch">Already have an account? <a href="#" id="show-login">Sign in</a></p>
+    </form>
+
+    <!-- Forgot Password Form -->
+    <form id="forgot-form" class="auth-form hidden" autocomplete="off">
+      <h2 class="auth-title">Forgot Password</h2>
+      <p class="auth-subtitle">Enter your email and we'll send you a reset link.</p>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="forgot-email" class="form-input" placeholder="you@example.com" required />
+      </div>
+      <div id="forgot-error" class="form-error hidden"></div>
+      <div id="forgot-success" class="form-success hidden"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="forgot-btn">
+        <span class="btn-text">Send Reset Link</span>
+        <span class="btn-loader hidden">⟳</span>
+      </button>
+      <p class="auth-switch"><a href="#" class="back-to-login">Back to sign in</a></p>
+    </form>
+
+    <!-- Reset Password Form -->
+    <form id="reset-form" class="auth-form hidden" autocomplete="off">
+      <h2 class="auth-title">Set New Password</h2>
+      <p class="auth-subtitle">Enter your new password below.</p>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <div class="input-with-toggle">
+          <input type="password" id="reset-password" class="form-input" placeholder="Min 8 characters" required />
+          <button type="button" class="toggle-password" data-target="reset-password">👁</button>
+        </div>
+      </div>
+      <div id="reset-error" class="form-error hidden"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="reset-btn">
+        <span class="btn-text">Update Password</span>
+        <span class="btn-loader hidden">⟳</span>
+      </button>
+      <p class="auth-switch"><a href="#" class="back-to-login">Back to sign in</a></p>
     </form>
   </div>
 </div>
@@ -134,7 +277,11 @@
             <div id="dropdown-user-email" class="user-info-email"></div>
           </div>
           <div class="dropdown-divider"></div>
-          <button class="dropdown-item" id="logout-btn">Sign Out</button>
+          <button class="dropdown-item" id="export-notes-btn">
+            <span class="dropdown-item-icon">⬇︎</span> Export Notes
+          </button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item dropdown-item--danger" id="logout-btn">Sign Out</button>
         </div>
       </div>
     </div>
@@ -205,6 +352,16 @@
             <span>Chats</span>
             <button class="sidebar-add-btn" id="new-chat-btn" title="New chat">+</button>
           </div>
+          <div class="chat-search-wrap" id="chat-search-wrap">
+            <span class="chat-search-icon">
+              <svg width="13" height="13" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="10.1" y1="10.1" x2="13.5" y2="13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <input type="search" id="chat-search-input" class="chat-search-input" placeholder="Search chats…" autocomplete="off" />
+            <button class="chat-search-clear hidden" id="chat-search-clear" title="Clear search" aria-label="Clear search">✕</button>
+          </div>
           <div class="sidebar-folders" id="chat-session-list"></div>
         </div>
       </nav>
@@ -228,6 +385,7 @@
             </div>
           </div>
         </div>
+        <div class="notes-breadcrumb hidden" id="notes-breadcrumb"></div>
         <div class="notes-grid" id="notes-grid">
           <div class="empty-state hidden" id="notes-empty">
             <div class="empty-icon">✏️</div>
@@ -263,6 +421,7 @@
           </div>
         </div>
 
+        <div class="pdfs-breadcrumb hidden" id="pdfs-breadcrumb"></div>
         <div class="pdfs-grid" id="pdfs-grid">
           <div class="empty-state hidden" id="pdfs-empty">
             <div class="empty-icon">📚</div>
@@ -426,14 +585,16 @@
 <div class="toast-container" id="toast-container"></div>
 
 <!-- Scripts -->
-<script src="/js/utils/storage.js"></script>
-<script src="/js/utils/helpers.js"></script>
-<script src="/js/utils/api.js"></script>
-<script src="/js/modules/auth.js"></script>
-<script src="/js/modules/notes.js"></script>
-<script src="/js/modules/pdfs.js"></script>
-<script src="/js/modules/chat.js"></script>
-<script src="/js/app.js"></script>
+<script type="module" src="/js/utils/storage.js"></script>
+<script type="module" src="/js/utils/helpers.js"></script>
+<script type="module" src="/js/utils/api.js"></script>
+<script type="module" src="/js/modules/auth.js"></script>
+<script type="module" src="/js/modules/notes.js"></script>
+<script type="module" src="/js/modules/pdfs.js"></script>
+<script type="module" src="/js/modules/chat.js"></script>
+<script type="module" src="/js/modules/landing.js"></script>
+<script type="module" src="/js/modules/export.js"></script>
+<script type="module" src="/js/app.js"></script>
 
 </body>
 </html>

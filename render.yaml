@@ -2,7 +2,7 @@ services:
   - type: web
     name: study-hub
     runtime: node
-    buildCommand: npm install
+    buildCommand: npm install && npm run build
     startCommand: node backend/server.js
     envVars:
       - key: NODE_ENV

@@ -14,6 +14,8 @@ const chatController = require('../controllers/chatController');
 // =============================================
 router.post('/auth/register', authController.register);
 router.post('/auth/login', authController.login);
+router.post('/auth/forgot-password', authController.forgotPassword);
+router.post('/auth/reset-password', authController.resetPassword);
 router.get('/auth/profile', authenticate, authController.getProfile);
 router.put('/auth/profile', authenticate, authController.updateProfile);
 
@@ -54,6 +56,7 @@ router.delete('/pdfs/:id', authenticate, pdfController.deletePdf);
 // =============================================
 // CHAT ROUTES
 // =============================================
+router.get('/chat/sessions/search', authenticate, chatController.searchSessions);
 router.get('/chat/sessions', authenticate, chatController.getSessions);
 router.post('/chat/sessions', authenticate, chatController.createSession);
 router.put('/chat/sessions/:id', authenticate, chatController.updateSession);

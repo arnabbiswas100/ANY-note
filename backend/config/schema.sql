@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title VARCHAR(300) DEFAULT 'New Chat',
+  linked_note_id UUID REFERENCES notes(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -117,6 +118,17 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE INDEX IF NOT EXISTS chat_messages_session_idx ON chat_messages(session_id);
 CREATE INDEX IF NOT EXISTS chat_sessions_user_idx ON chat_sessions(user_id);
+
+-- Migration: add linked_note_id if it doesn't exist yet (safe to run repeatedly)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='chat_sessions' AND column_name='linked_note_id'
+  ) THEN
+    ALTER TABLE chat_sessions
+      ADD COLUMN linked_note_id UUID REFERENCES notes(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- =============================================
 -- UPDATED_AT TRIGGER FUNCTION
@@ -144,3 +156,33 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+-- =============================================
+-- NESTED FOLDERS MIGRATION (safe to re-run)
+-- =============================================
+
+-- Add parent_id to note_folders
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='note_folders' AND column_name='parent_id'
+  ) THEN
+    ALTER TABLE note_folders
+      ADD COLUMN parent_id UUID REFERENCES note_folders(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS note_folders_parent_idx ON note_folders(parent_id);
+
+-- Add parent_id to pdf_folders
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='pdf_folders' AND column_name='parent_id'
+  ) THEN
+    ALTER TABLE pdf_folders
+      ADD COLUMN parent_id UUID REFERENCES pdf_folders(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS pdf_folders_parent_idx ON pdf_folders(parent_id);

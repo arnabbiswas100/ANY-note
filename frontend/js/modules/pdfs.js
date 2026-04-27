@@ -3,7 +3,7 @@
    Drag+drop upload, grid view, viewer, folders, delete, search
    ═══════════════════════════════════════════════════════════════ */
 
-const PDFs = (() => {
+window.PDFs = (() => {
   const { toast, show, hide, debounce, formatDate, formatFileSize,
           escHtml, truncate, setLoading } = Helpers;
 
@@ -14,10 +14,53 @@ const PDFs = (() => {
     activeFolder:  'all',
     searchQuery:   '',
     dragCounter:   0,
-    isUploading:   false,  // Guard against duplicate uploads
+    isUploading:   false,
+    newFolderParentId: null,
+    folderColor:   '',
   };
 
+  let dragSourceId = null;
+
   const el = (id) => document.getElementById(id);
+
+  const FOLDER_COLORS = [
+    { name: 'none',   hex: '' },
+    { name: 'red',    hex: '#ff5858' },
+    { name: 'orange', hex: '#ff9644' },
+    { name: 'yellow', hex: '#ffd60a' },
+    { name: 'green',  hex: '#4cde80' },
+    { name: 'teal',   hex: '#24c6c8' },
+    { name: 'blue',   hex: '#4895ef' },
+    { name: 'purple', hex: '#9b5de5' },
+    { name: 'pink',   hex: '#f15bb5' },
+    { name: 'gray',   hex: '#8a8480' },
+  ];
+
+  // ── Nested folder helpers ──────────────────────────────────────
+  const COLLAPSED_KEY = 'pdf_collapsed_folders';
+  const getCollapsed = () => new Set(JSON.parse(sessionStorage.getItem(COLLAPSED_KEY) || '[]'));
+  const setCollapsed = (s) => sessionStorage.setItem(COLLAPSED_KEY, JSON.stringify([...s]));
+  const toggleCollapsed = (id) => { const s = getCollapsed(); s.has(id) ? s.delete(id) : s.add(id); setCollapsed(s); };
+
+  const buildFolderTree = (folders) => {
+    const map = {};
+    folders.forEach(f => { map[f.id] = { ...f, children: [] }; });
+    const roots = [];
+    folders.forEach(f => {
+      if (f.parent_id && map[f.parent_id]) map[f.parent_id].children.push(map[f.id]);
+      else roots.push(map[f.id]);
+    });
+    return roots;
+  };
+
+  const getAncestors = (id, folders) => {
+    const map = {};
+    folders.forEach(f => { map[f.id] = f; });
+    const chain = [];
+    let cur = map[id];
+    while (cur) { chain.unshift(cur); cur = cur.parent_id ? map[cur.parent_id] : null; }
+    return chain;
+  };
 
   // ─────────────────────────────────────────────────────────────
   // Data loading
@@ -146,31 +189,27 @@ const PDFs = (() => {
           toast.success('PDF moved.');
           card.querySelector('.pdf-move-dropdown').classList.add('hidden');
           await loadPDFs();
-        } catch (err) {
-          toast.error('Failed to move PDF: ' + err.message);
-        }
+        } catch (err) { toast.error('Failed to move PDF: ' + err.message); }
       });
     });
-    // Close dropdown when clicking outside the card
     document.addEventListener('mousedown', function outsideClose(e) {
-      if (!card.contains(e.target)) {
-        card.querySelector('.pdf-move-dropdown')?.classList.add('hidden');
-      }
+      if (!card.contains(e.target)) card.querySelector('.pdf-move-dropdown')?.classList.add('hidden');
     });
     card.addEventListener('click', () => openViewer(pdf));
-
     return card;
   };
 
   // ── PDF folder context menu (⋯ button) ───────────────────────
   let activePdfContextMenu = null;
 
-  const openPdfFolderContextMenu = (e, folder) => {
+  const openPdfFolderContextMenu = (e, folder, depth = 0) => {
     if (activePdfContextMenu) activePdfContextMenu.remove();
 
     const menu = document.createElement('div');
     menu.className = 'folder-context-menu';
+    const subDisabled = depth >= 2 ? ' style="opacity:0.4;pointer-events:none"' : '';
     menu.innerHTML = `
+      <button class="folder-ctx-item" data-action="subfolder"${subDisabled}>📁 New Subfolder</button>
       <button class="folder-ctx-item" data-action="edit">✏️ Edit folder</button>
       <button class="folder-ctx-item danger" data-action="delete">🗑 Delete folder</button>
     `;
@@ -178,14 +217,18 @@ const PDFs = (() => {
     activePdfContextMenu = menu;
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const menuW = 160;
+    const menuW = 170;
     let left = rect.left - menuW + rect.width;
     let top  = rect.bottom + 4;
     if (left < 4) left = 4;
-    if (top + 100 > window.innerHeight) top = rect.top - 104;
+    if (top + 120 > window.innerHeight) top = rect.top - 124;
     menu.style.left = left + 'px';
     menu.style.top  = top  + 'px';
 
+    menu.querySelector('[data-action="subfolder"]')?.addEventListener('click', () => {
+      menu.remove(); activePdfContextMenu = null;
+      if (depth < 2) openFolderModal('create', null, folder.id);
+    });
     menu.querySelector('[data-action="edit"]').addEventListener('click', () => {
       menu.remove(); activePdfContextMenu = null;
       openFolderModal('edit', folder);
@@ -203,42 +246,75 @@ const PDFs = (() => {
     }, 0);
   };
 
+
   const renderFolderSidebar = () => {
     const list = el('pdf-folder-items');
     if (!list) return;
-
     list.innerHTML = '';
-    state.folders.forEach(f => {
+
+    const collapsed = getCollapsed();
+    const tree = buildFolderTree(state.folders);
+
+    const renderNode = (node, depth, target) => {
+      const isActive    = state.activeFolder === String(node.id);
+      const hasKids     = node.children.length > 0;
+      const isCollapsed = collapsed.has(String(node.id));
+      const dotStyle    = node.color ? `background:${escHtml(node.color)};` : 'background:var(--text-3);';
+
       const wrap = document.createElement('div');
       wrap.className = 'folder-item-wrap';
+      wrap.style.setProperty('--folder-depth', depth);
+      wrap.dataset.depth = depth;
+      wrap.dataset.id = node.id;
+      wrap.draggable = true;
 
       const btn = document.createElement('button');
-      btn.className = `folder-item${state.activeFolder === String(f.id) ? ' active' : ''}`;
-      btn.dataset.id = f.id;
+      btn.className = `folder-item${isActive ? ' active' : ''}`;
+      btn.dataset.id = node.id;
       btn.innerHTML = `
-        <span class="folder-color-dot" style="background:${escHtml(f.color || 'var(--text-3)')};"></span>
-        <span class="folder-icon">${escHtml(f.icon || '📁')}</span>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;">${escHtml(f.name)}</span>
+        <span class="folder-expand-btn${hasKids ? (isCollapsed ? '' : ' open') : ' invisible'}" data-eid="${escHtml(String(node.id))}">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="folder-color-dot" style="${dotStyle}"></span>
+        <span class="folder-icon">${escHtml(node.icon || '📁')}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;">${escHtml(node.name)}</span>
       `;
-      btn.addEventListener('click', () => setActiveFolder(String(f.id)));
+      btn.addEventListener('click', (e) => {
+        if (e.target.closest('.folder-expand-btn')) {
+          e.stopPropagation(); toggleCollapsed(String(node.id)); renderFolderSidebar(); return;
+        }
+        setActiveFolder(String(node.id));
+      });
 
       const menuBtn = document.createElement('button');
       menuBtn.className = 'folder-menu-btn';
       menuBtn.title = 'Folder options';
       menuBtn.innerHTML = '⋯';
-      menuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openPdfFolderContextMenu(e, f);
-      });
+      menuBtn.addEventListener('click', (e) => { e.stopPropagation(); openPdfFolderContextMenu(e, node, depth); });
 
-      wrap.appendChild(btn);
-      wrap.appendChild(menuBtn);
-      list.appendChild(wrap);
-    });
+      wrap.appendChild(btn); wrap.appendChild(menuBtn);
 
-    // Highlight active
-    el('pdf-folder-items')?.querySelectorAll('.folder-item').forEach(i => {
-      i.classList.toggle('active', i.dataset.id === state.activeFolder);
+      wrap.addEventListener('dragstart', (e) => { dragSourceId = String(node.id); e.dataTransfer.effectAllowed = 'move'; setTimeout(() => wrap.classList.add('dragging'), 0); });
+      wrap.addEventListener('dragend',   () => { dragSourceId = null; wrap.classList.remove('dragging'); document.querySelectorAll('.folder-item-wrap.drag-over').forEach(w => w.classList.remove('drag-over')); });
+      wrap.addEventListener('dragover',  (e) => { if (!dragSourceId || dragSourceId === String(node.id)) return; e.preventDefault(); wrap.classList.add('drag-over'); });
+      wrap.addEventListener('dragleave', () => wrap.classList.remove('drag-over'));
+      wrap.addEventListener('drop',      (e) => { e.preventDefault(); wrap.classList.remove('drag-over'); dragSourceId = null; });
+
+      target.appendChild(wrap);
+
+      if (hasKids) {
+        const childBox = document.createElement('div');
+        childBox.className = 'folder-tree-children' + (isCollapsed ? ' collapsed' : '');
+        node.children.forEach(child => renderNode(child, depth + 1, childBox));
+        target.appendChild(childBox);
+      }
+    };
+
+    tree.forEach(node => renderNode(node, 0, list));
+
+    // Keep static All/Uncategorized active state
+    el('pdf-folder-list')?.querySelectorAll('[data-folder]').forEach(b => {
+      b.classList.toggle('active', b.dataset.folder === state.activeFolder);
     });
   };
 
@@ -247,12 +323,17 @@ const PDFs = (() => {
     if (!sel) return;
     const current = sel.value;
     sel.innerHTML = '<option value="">No Folder</option>';
-    state.folders.forEach(f => {
-      const opt = document.createElement('option');
-      opt.value = f.id;
-      opt.textContent = f.name;
-      sel.appendChild(opt);
-    });
+    const tree = buildFolderTree(state.folders);
+    const flatten = (nodes, depth) => {
+      nodes.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = '\u00a0\u00a0'.repeat(depth) + (depth > 0 ? '↳ ' : '') + f.name;
+        sel.appendChild(opt);
+        if (f.children && f.children.length) flatten(f.children, depth + 1);
+      });
+    };
+    flatten(tree, 0);
     sel.value = current;
   };
 
@@ -260,25 +341,49 @@ const PDFs = (() => {
     state.activeFolder = folderId;
     renderFolderSidebar();
 
-    // Update "All" item active state
     el('pdf-folder-list')?.querySelectorAll('[data-folder]').forEach(b => {
       b.classList.toggle('active', b.dataset.folder === folderId);
     });
 
-    // Update view title to show current folder name
     const titleEl = el('pdfs-view-title');
     if (titleEl) {
-      if (folderId === 'all') {
-        titleEl.textContent = 'PDF Library';
-      } else if (folderId === 'uncategorized') {
-        titleEl.textContent = 'Uncategorized';
-      } else {
+      if (folderId === 'all') titleEl.textContent = 'PDF Library';
+      else if (folderId === 'uncategorized') titleEl.textContent = 'Uncategorized';
+      else {
         const folder = state.folders.find(f => String(f.id) === String(folderId));
         titleEl.textContent = folder ? folder.name : 'PDF Library';
       }
     }
 
+    renderPdfBreadcrumb();
     loadPDFs();
+  };
+
+  // ── PDF Breadcrumb ─────────────────────────────────────────────
+  const renderPdfBreadcrumb = () => {
+    const bc = el('pdfs-breadcrumb');
+    if (!bc) return;
+    const id = state.activeFolder;
+    if (!id || id === 'all' || id === 'uncategorized') {
+      bc.innerHTML = ''; bc.classList.add('hidden'); return;
+    }
+    const ancestors = getAncestors(id, state.folders);
+    if (!ancestors.length) { bc.innerHTML = ''; bc.classList.add('hidden'); return; }
+    bc.classList.remove('hidden');
+    bc.innerHTML = '';
+    const allItem = document.createElement('span');
+    allItem.className = 'pdfs-breadcrumb-item';
+    allItem.textContent = 'All PDFs';
+    allItem.addEventListener('click', () => setActiveFolder('all'));
+    bc.appendChild(allItem);
+    ancestors.forEach((f, i) => {
+      const sep = document.createElement('span'); sep.className = 'pdfs-breadcrumb-sep'; sep.textContent = '›'; bc.appendChild(sep);
+      const item = document.createElement('span');
+      item.className = 'pdfs-breadcrumb-item' + (i === ancestors.length - 1 ? ' current' : '');
+      item.textContent = f.name;
+      if (i < ancestors.length - 1) item.addEventListener('click', () => setActiveFolder(String(f.id)));
+      bc.appendChild(item);
+    });
   };
 
   // ─────────────────────────────────────────────────────────────
@@ -473,15 +578,35 @@ const PDFs = (() => {
 
   let folderEditTarget = null;
 
-  const openFolderModal = (mode = 'create', folder = null) => {
+  // ── Render folder color swatches ──────────────────────────────
+  const renderFolderColorSwatches = () => {
+    const container = el('folder-color-swatches');
+    if (!container) return;
+    container.innerHTML = '';
+
+    FOLDER_COLORS.forEach(c => {
+      const swatch = document.createElement('div');
+      swatch.className = 'color-swatch folder-color-swatch' + (state.folderColor === c.hex ? ' selected' : '');
+      swatch.title = c.name;
+      swatch.style.background = c.hex || 'var(--bg-3)';
+      if (!c.hex) swatch.style.border = '2px solid var(--border-2)';
+      swatch.addEventListener('click', () => {
+        state.folderColor = c.hex;
+        renderFolderColorSwatches();
+      });
+      container.appendChild(swatch);
+    });
+  };
+
+  const openFolderModal = (mode = 'create', folder = null, parentId = null) => {
     folderEditTarget = folder;
+    state.newFolderParentId = folder ? null : (parentId || null);
     const overlay = el('folder-modal-overlay');
     const title   = el('folder-modal-title');
     const nameIn  = el('folder-name-input');
     const saveBtn = el('save-folder-btn');
     if (!overlay) return;
 
-    // Mark as PDF folder context
     overlay.dataset.context = 'pdf';
 
     if (mode === 'edit' && folder) {
@@ -489,10 +614,20 @@ const PDFs = (() => {
       nameIn.value = folder.name || '';
       saveBtn.textContent = 'Save';
     } else {
-      title.textContent = 'New PDF Folder';
+      title.textContent = parentId ? 'New Subfolder' : 'New PDF Folder';
       nameIn.value = '';
       saveBtn.textContent = 'Create';
     }
+
+    // Reset icon picker
+    const iconSel = folder?.icon || '📁';
+    document.querySelectorAll('.icon-option').forEach(opt => {
+      opt.classList.toggle('selected', opt.dataset.icon === iconSel);
+    });
+
+    // Reset color picker
+    state.folderColor = folder?.color || '';
+    renderFolderColorSwatches();
 
     show(overlay);
     setTimeout(() => nameIn.focus(), 50);
@@ -510,10 +645,10 @@ const PDFs = (() => {
 
     try {
       if (folderEditTarget) {
-        await API.pdfs.updateFolder(folderEditTarget.id, { name, icon });
+        await API.pdfs.updateFolder(folderEditTarget.id, { name, icon, color: state.folderColor || null });
         toast.success('Folder renamed.');
       } else {
-        await API.pdfs.createFolder({ name, icon });
+        await API.pdfs.createFolder({ name, icon, color: state.folderColor || null, parent_id: state.newFolderParentId || null });
         toast.success('Folder created.');
       }
       closeFolderModal();
@@ -530,7 +665,7 @@ const PDFs = (() => {
   };
 
   const deleteFolderConfirm = async (folder) => {
-    if (!confirm(`Delete folder "${folder.name}"? PDFs inside will become uncategorized.`)) return;
+    if (!confirm(`Delete folder "${folder.name}"?\n\nAll subfolders and PDFs inside will also be deleted.`)) return;
     try {
       await API.pdfs.deleteFolder(folder.id);
       if (state.activeFolder === String(folder.id)) {

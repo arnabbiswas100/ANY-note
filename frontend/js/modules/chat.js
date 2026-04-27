@@ -3,7 +3,7 @@
    Sessions, message send/receive, streaming, context attach
    ═══════════════════════════════════════════════════════════════ */
 
-const Chat = (() => {
+window.Chat = (() => {
   const { toast, show, hide, debounce, formatDate, escHtml,
           renderMarkdown, autoResize, truncate, setLoading } = Helpers;
 
@@ -13,6 +13,8 @@ const Chat = (() => {
     activeSession:  null,   // full session object
     messages:       [],
     isStreaming:    false,
+    searchQuery:    '',
+    searchResults:  null,   // null = not searching, [] = no results
     context: {
       noteIds: [],
       pdfIds:  [],
@@ -22,6 +24,185 @@ const Chat = (() => {
   };
 
   const el = (id) => document.getElementById(id);
+
+  // ─────────────────────────────────────────────────────────────
+  // Fuzzy matching engine
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Levenshtein edit distance between two strings.
+   * Counts minimum single-char insertions, deletions, substitutions.
+   * Uses optimized single-row DP with early termination.
+   */
+  const levenshtein = (a, b) => {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+
+    // Ensure a is shorter for memory efficiency
+    if (a.length > b.length) [a, b] = [b, a];
+
+    const la = a.length, lb = b.length;
+    let prev = Array.from({ length: la + 1 }, (_, i) => i);
+    let curr = new Array(la + 1);
+
+    for (let j = 1; j <= lb; j++) {
+      curr[0] = j;
+      for (let i = 1; i <= la; i++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        curr[i] = Math.min(
+          prev[i] + 1,       // deletion
+          curr[i - 1] + 1,   // insertion
+          prev[i - 1] + cost  // substitution
+        );
+      }
+      [prev, curr] = [curr, prev];
+    }
+    return prev[la];
+  };
+
+  /**
+   * Bigram similarity (Dice coefficient).
+   * Measures overlap of character pairs between two strings.
+   * Returns 0–1 where 1 = identical bigram sets.
+   */
+  const bigramSimilarity = (a, b) => {
+    if (a === b) return 1;
+    if (a.length < 2 || b.length < 2) return 0;
+
+    const getBigrams = (s) => {
+      const bigrams = new Map();
+      for (let i = 0; i < s.length - 1; i++) {
+        const pair = s.slice(i, i + 2);
+        bigrams.set(pair, (bigrams.get(pair) || 0) + 1);
+      }
+      return bigrams;
+    };
+
+    const aB = getBigrams(a);
+    const bB = getBigrams(b);
+    let intersection = 0;
+
+    for (const [pair, count] of aB) {
+      if (bB.has(pair)) intersection += Math.min(count, bB.get(pair));
+    }
+
+    return (2 * intersection) / (a.length - 1 + b.length - 1);
+  };
+
+  /**
+   * Check if query characters appear in order within text (subsequence match).
+   * Returns { match: boolean, score: number } where score reflects match quality.
+   */
+  const subsequenceMatch = (text, query) => {
+    let ti = 0, consecutive = 0, maxConsecutive = 0, firstIdx = -1;
+    for (let i = 0; i < text.length && ti < query.length; i++) {
+      if (text[i] === query[ti]) {
+        if (firstIdx === -1) firstIdx = i;
+        consecutive++;
+        maxConsecutive = Math.max(maxConsecutive, consecutive);
+        ti++;
+      } else {
+        consecutive = 0;
+      }
+    }
+    if (ti < query.length) return { match: false, score: 0 };
+
+    // Score: reward consecutive matches, penalize spread-out matches
+    const coverage = query.length / text.length;
+    const consecutiveBonus = maxConsecutive / query.length;
+    const startBonus = firstIdx === 0 ? 0.15 : 0;
+    return {
+      match: true,
+      score: (coverage * 0.3 + consecutiveBonus * 0.5 + startBonus + 0.05) * 25,
+    };
+  };
+
+  /**
+   * Fuzzy match a single query token against a single word from the text.
+   * Returns a score 0–100 combining Levenshtein distance and bigram similarity.
+   */
+  const fuzzyMatchWord = (word, token) => {
+    if (word === token) return 100;
+    if (word.includes(token)) return 85 + (token.length / word.length) * 15;
+    if (token.includes(word)) return 60;
+
+    const maxLen = Math.max(word.length, token.length);
+    const dist = levenshtein(word, token);
+
+    // Allow up to ~40% edit distance for fuzzy tolerance
+    const maxDist = Math.ceil(maxLen * 0.4);
+    if (dist > maxDist) return 0;
+
+    const distScore = (1 - dist / maxLen) * 50;
+    const bigramScore = bigramSimilarity(word, token) * 50;
+
+    return distScore + bigramScore;
+  };
+
+  /**
+   * Main fuzzy scorer: how well `query` matches `text`.
+   * Returns 0 for no match, higher = better.
+   * Combines exact, substring, subsequence, Levenshtein, and bigram matching.
+   */
+  const fuzzyScore = (text, query) => {
+    if (!text || !query) return 0;
+    const tLower = text.toLowerCase().trim();
+    const qLower = query.toLowerCase().trim();
+
+    // 1. Exact match
+    if (tLower === qLower) return 200;
+
+    // 2. Full substring match
+    if (tLower.includes(qLower)) return 150 + (qLower.length / tLower.length) * 50;
+
+    // 3. Subsequence match (chars in order)
+    const subseq = subsequenceMatch(tLower, qLower);
+    let bestScore = subseq.match ? subseq.score : 0;
+
+    // 4. Token-level fuzzy matching
+    const queryTokens = qLower.split(/\s+/).filter(Boolean);
+    const textWords = tLower.split(/[\s\-_.,;:!?/()]+/).filter(Boolean);
+
+    let totalTokenScore = 0;
+    let matchedTokens = 0;
+
+    for (const qToken of queryTokens) {
+      let bestWordScore = 0;
+
+      // Check exact substring in full text first
+      if (tLower.includes(qToken)) {
+        bestWordScore = 80;
+      } else {
+        // Try fuzzy match against each word
+        for (const word of textWords) {
+          const score = fuzzyMatchWord(word, qToken);
+          bestWordScore = Math.max(bestWordScore, score);
+        }
+
+        // Also try prefix matching (typing partial words)
+        for (const word of textWords) {
+          if (word.startsWith(qToken.slice(0, Math.max(2, qToken.length - 1)))) {
+            bestWordScore = Math.max(bestWordScore, 55);
+          }
+        }
+      }
+
+      if (bestWordScore > 15) matchedTokens++;
+      totalTokenScore += bestWordScore;
+    }
+
+    // Require at least some tokens to match
+    if (matchedTokens === 0) return 0;
+
+    const avgTokenScore = totalTokenScore / queryTokens.length;
+    const matchRatio = matchedTokens / queryTokens.length;
+
+    // Blend: average token quality × match coverage
+    const tokenFinalScore = avgTokenScore * matchRatio;
+
+    return Math.max(bestScore, tokenFinalScore);
+  };
 
   // ─────────────────────────────────────────────────────────────
   // Sessions
@@ -44,10 +225,54 @@ const Chat = (() => {
     }
   };
 
+  /**
+   * Highlight matching portions of text with <mark> tags
+   */
+  const highlightMatch = (text, query) => {
+    if (!query || !text) return escHtml(text || '');
+    const escaped = escHtml(text);
+    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    let result = escaped;
+    for (const token of tokens) {
+      const regex = new RegExp(`(${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      result = result.replace(regex, '<span class="chat-search-highlight">$1</span>');
+    }
+    return result;
+  };
+
+  /**
+   * Find a snippet from the last_message that contains a query match
+   */
+  const getMatchSnippet = (message, query) => {
+    if (!message || !query) return '';
+    const msgLower = message.toLowerCase();
+    const qLower = query.toLowerCase();
+    const tokens = qLower.split(/\s+/).filter(Boolean);
+
+    for (const token of tokens) {
+      const idx = msgLower.indexOf(token);
+      if (idx !== -1) {
+        const start = Math.max(0, idx - 25);
+        const end = Math.min(message.length, idx + token.length + 40);
+        let snippet = message.slice(start, end).replace(/\n/g, ' ').trim();
+        if (start > 0) snippet = '…' + snippet;
+        if (end < message.length) snippet = snippet + '…';
+        return snippet;
+      }
+    }
+    return '';
+  };
+
   const renderSessionList = () => {
     const list = el('chat-session-list');
     if (!list) return;
     list.innerHTML = '';
+
+    // If we're in search mode, render search results
+    if (state.searchResults !== null) {
+      renderSearchResults(list);
+      return;
+    }
 
     state.sessions.forEach(s => {
       const item = document.createElement('div');
@@ -62,6 +287,49 @@ const Chat = (() => {
       `;
       item.addEventListener('click', (e) => {
         if (e.target.closest('.folder-actions')) return;
+        activateSession(s);
+      });
+      item.querySelector('.del-session').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteSession(s.id);
+      });
+      list.appendChild(item);
+    });
+  };
+
+  const renderSearchResults = (list) => {
+    const results = state.searchResults;
+    const query = state.searchQuery;
+
+    if (results.length === 0) {
+      list.innerHTML = `
+        <div class="chat-search-empty">
+          <span class="chat-search-empty-icon">🔍</span>
+          No chats found for "${escHtml(query)}"
+        </div>
+      `;
+      return;
+    }
+
+    results.forEach(s => {
+      const item = document.createElement('div');
+      item.className = `session-item folder-item${state.activeSession?.id === s.id ? ' active' : ''}`;
+      item.dataset.id = s.id;
+
+      const titleHtml = highlightMatch(s.title || 'New Chat', query);
+      const snippet = getMatchSnippet(s.last_message, query);
+      const snippetHtml = snippet ? `<span class="session-search-snippet">${highlightMatch(snippet, query)}</span>` : '';
+
+      item.innerHTML = `
+        <span class="folder-icon">💬</span>
+        <span class="folder-name session-title">${titleHtml}${snippetHtml}</span>
+        <div class="folder-actions">
+          <button class="folder-action-btn del-session" data-id="${s.id}" title="Delete">✕</button>
+        </div>
+      `;
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.folder-actions')) return;
+        clearSearch();
         activateSession(s);
       });
       item.querySelector('.del-session').addEventListener('click', (e) => {
@@ -238,25 +506,6 @@ const Chat = (() => {
       };
       appendMessage(aiMsg);
 
-      // Auto-save AI answer as a note (fire-and-forget — don't block chat)
-      const noteTitle = content.slice(0, 60) + (content.length > 60 ? '…' : '');
-      API.notes.create({
-        title: noteTitle,
-        content: aiContent,
-        color: null,
-        is_pinned: false,
-        folder_id: null,
-      }).then(() => {
-        toast.info('📝 Answer saved to Notes');
-      }).catch((noteErr) => {
-        console.warn('Auto-save note failed:', noteErr.message);
-      });
-
-      // Auto-update session title from first exchange
-      if (state.messages.filter(m => m.role === 'user').length === 1) {
-        const title = content.slice(0, 50);
-        updateSessionTitle(state.activeSession.id, title);
-      }
     } catch (err) {
       removeTypingIndicator(typingEl);
       const errMsg = {
@@ -465,6 +714,85 @@ const Chat = (() => {
   };
 
   // ─────────────────────────────────────────────────────────────
+  // Search
+  // ─────────────────────────────────────────────────────────────
+
+  const performSearch = async (query) => {
+    state.searchQuery = query;
+
+    if (!query) {
+      state.searchResults = null;
+      renderSessionList();
+      return;
+    }
+
+    // Step 1: Instant client-side fuzzy match on cached sessions
+    const clientResults = state.sessions
+      .map(s => ({
+        ...s,
+        _score: fuzzyScore(s.title || '', query) +
+                fuzzyScore(s.last_message || '', query) * 0.5,
+      }))
+      .filter(s => s._score > 0)
+      .sort((a, b) => b._score - a._score);
+
+    // Show client results immediately
+    state.searchResults = clientResults;
+    renderSessionList();
+
+    // Step 2: Server-side deep search (searches message content too)
+    try {
+      const data = await API.chat.searchSessions(query);
+      const serverSessions = data.sessions || [];
+
+      // Merge: server results may include sessions not matched client-side
+      const mergedMap = new Map();
+
+      // Add client results first
+      for (const s of clientResults) {
+        mergedMap.set(s.id, s);
+      }
+
+      // Add/update with server results
+      for (const s of serverSessions) {
+        if (!mergedMap.has(s.id)) {
+          s._score = fuzzyScore(s.title || '', query) +
+                     fuzzyScore(s.last_message || '', query) * 0.5 + 5; // bonus for server match
+          mergedMap.set(s.id, s);
+        } else {
+          // Boost score for sessions found by both
+          const existing = mergedMap.get(s.id);
+          existing._score = (existing._score || 0) + 5;
+          // Update last_message if server provided a richer one
+          if (s.last_message && !existing.last_message) {
+            existing.last_message = s.last_message;
+          }
+          mergedMap.set(s.id, existing);
+        }
+      }
+
+      const merged = [...mergedMap.values()].sort((a, b) => (b._score || 0) - (a._score || 0));
+      state.searchResults = merged;
+      renderSessionList();
+    } catch (err) {
+      // If server search fails, we still have client results
+      console.warn('Server chat search failed:', err.message);
+    }
+  };
+
+  const debouncedSearch = debounce((query) => performSearch(query), 250);
+
+  const clearSearch = () => {
+    const searchInput = el('chat-search-input');
+    const clearBtn = el('chat-search-clear');
+    if (searchInput) searchInput.value = '';
+    if (clearBtn) hide(clearBtn);
+    state.searchQuery = '';
+    state.searchResults = null;
+    renderSessionList();
+  };
+
+  // ─────────────────────────────────────────────────────────────
   // Init
   // ─────────────────────────────────────────────────────────────
 
@@ -474,6 +802,7 @@ const Chat = (() => {
       state.activeSession = null;
       state.messages = [];
       Storage.setActiveChatSession(null);
+      clearSearch();
       renderSessionList();
       showWelcomeView();
     });
@@ -495,6 +824,34 @@ const Chat = (() => {
           e.preventDefault();
           if (input.value.trim() && !state.isStreaming) sendMessage();
         }
+      });
+    }
+
+    // ── Chat search ──────────────────────────────────────────
+    const searchInput = el('chat-search-input');
+    const clearBtn = el('chat-search-clear');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.trim();
+        if (clearBtn) {
+          if (q) show(clearBtn); else hide(clearBtn);
+        }
+        debouncedSearch(q);
+      });
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          clearSearch();
+          searchInput.blur();
+        }
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        clearSearch();
+        searchInput?.focus();
       });
     }
 

@@ -2,7 +2,7 @@
    STUDY-HUB — Storage Utility
    ═══════════════════════════════════════════════════════════════ */
 
-const Storage = (() => {
+window.Storage = (() => {
   const PREFIX = 'studyhub_';
 
   const set = (key, value) => {

@@ -1266,3 +1266,392 @@
   font-family: var(--font-display) !important;
   letter-spacing: -0.02em;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   CHAT SEARCH — GLASS OVERRIDES
+   ════════════════════════════════════════════════════════════════ */
+
+[data-theme="glass-dark"] .chat-search-input {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.9);
+}
+
+[data-theme="glass-dark"] .chat-search-input::placeholder {
+  color: rgba(255,255,255,0.30);
+}
+
+[data-theme="glass-dark"] .chat-search-input:focus {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.22);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
+}
+
+[data-theme="glass-dark"] .chat-search-icon {
+  color: rgba(255,255,255,0.30);
+}
+
+[data-theme="glass-dark"] .chat-search-wrap:focus-within .chat-search-icon {
+  color: rgba(255,255,255,0.65);
+}
+
+[data-theme="glass-dark"] .chat-search-clear {
+  color: rgba(255,255,255,0.35);
+}
+
+[data-theme="glass-dark"] .chat-search-clear:hover {
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.8);
+}
+
+[data-theme="glass-dark"] .chat-search-highlight {
+  background: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.95);
+}
+
+[data-theme="glass-dark"] .session-search-snippet {
+  color: rgba(255,255,255,0.35);
+}
+
+[data-theme="glass-dark"] .chat-search-empty {
+  color: rgba(255,255,255,0.35);
+}
+
+[data-theme="glass-light"] .chat-search-input {
+  background: rgba(255,255,255,0.45);
+  border-color: rgba(255,255,255,0.70);
+  color: rgba(0,0,0,0.85);
+}
+
+[data-theme="glass-light"] .chat-search-input::placeholder {
+  color: rgba(0,0,0,0.30);
+}
+
+[data-theme="glass-light"] .chat-search-input:focus {
+  background: rgba(255,255,255,0.65);
+  border-color: rgba(0,0,0,0.18);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.35);
+}
+
+[data-theme="glass-light"] .chat-search-icon {
+  color: rgba(0,0,0,0.30);
+}
+
+[data-theme="glass-light"] .chat-search-wrap:focus-within .chat-search-icon {
+  color: rgba(0,0,0,0.55);
+}
+
+[data-theme="glass-light"] .chat-search-clear {
+  color: rgba(0,0,0,0.35);
+}
+
+[data-theme="glass-light"] .chat-search-clear:hover {
+  background: rgba(255,255,255,0.55);
+  color: rgba(0,0,0,0.75);
+}
+
+[data-theme="glass-light"] .chat-search-highlight {
+  background: rgba(0,0,0,0.08);
+  color: rgba(0,0,0,0.88);
+}
+
+[data-theme="glass-light"] .session-search-snippet {
+  color: rgba(0,0,0,0.38);
+}
+
+[data-theme="glass-light"] .chat-search-empty {
+  color: rgba(0,0,0,0.38);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   NESTED FOLDER TREE — GLASS OVERRIDES
+   ════════════════════════════════════════════════════════════════ */
+
+/* Expand chevron */
+[data-theme="glass-dark"] .folder-expand-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+}
+[data-theme="glass-light"] .folder-expand-btn:hover {
+  background: rgba(255,255,255,0.55);
+  color: rgba(0,0,0,0.7);
+}
+
+/* Subfolder add (+) button */
+[data-theme="glass-dark"] .folder-add-sub-btn:hover {
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.8);
+}
+[data-theme="glass-light"] .folder-add-sub-btn:hover {
+  background: rgba(255,255,255,0.6);
+  color: rgba(0,0,0,0.75);
+}
+
+/* Drag-over highlight */
+[data-theme="glass-dark"] .folder-item-wrap.drag-over > .folder-item {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.22);
+}
+[data-theme="glass-light"] .folder-item-wrap.drag-over > .folder-item {
+  background: rgba(255,255,255,0.65);
+  border-color: rgba(0,0,0,0.18);
+}
+
+/* Children container (no extra glass styles needed — inherits sidebar bg) */
+[data-theme^="glass"] .folder-tree-children {
+  /* transparent — children inherit their own .folder-item glass styles */
+}
+
+/* Breadcrumb — Notes */
+[data-theme="glass-dark"] .notes-breadcrumb-item:hover,
+[data-theme="glass-dark"] .pdfs-breadcrumb-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.8);
+}
+[data-theme="glass-light"] .notes-breadcrumb-item:hover,
+[data-theme="glass-light"] .pdfs-breadcrumb-item:hover {
+  background: rgba(255,255,255,0.55);
+  color: rgba(0,0,0,0.8);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   GLASS THEME — MOBILE RESPONSIVE OVERRIDES
+   All rules scoped inside media queries to preserve desktop layout.
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* ── CRITICAL FIX: restore fixed sidebar on mobile ─────────── */
+  /* The desktop rule `[data-theme^="glass"] .sidebar { position: relative }`
+     has higher specificity than `.sidebar { position: fixed }` in layout.css,
+     which completely breaks the mobile overlay sidebar. */
+  [data-theme^="glass"] .sidebar {
+    position: fixed;
+    top: var(--topnav-h);
+    left: 0;
+    height: calc(100vh - var(--topnav-h));
+    z-index: 90;
+    transform: translateX(0);
+    width: var(--sidebar-w);
+  }
+
+  [data-theme^="glass"] .sidebar.collapsed {
+    width: var(--sidebar-w);
+    transform: translateX(-100%);
+  }
+
+  /* ── FIX: topnav z-index must be above sidebar (90) ────────── */
+  [data-theme^="glass"] .topnav {
+    z-index: 100;
+  }
+
+  /* ── Make sidebar more opaque on mobile overlay ────────────── */
+  /* Translucent sidebar over main content is unreadable on mobile */
+  [data-theme="glass-dark"] .sidebar {
+    background: rgba(10, 10, 10, 0.88);
+    backdrop-filter: blur(36px) saturate(1.5);
+    -webkit-backdrop-filter: blur(36px) saturate(1.5);
+  }
+
+  [data-theme="glass-light"] .sidebar {
+    background: rgba(235, 235, 235, 0.90);
+    backdrop-filter: blur(36px) saturate(1.5);
+    -webkit-backdrop-filter: blur(36px) saturate(1.5);
+  }
+
+  /* ── Glass scrim behind sidebar overlay ─────────────────────── */
+  [data-theme="glass-dark"] .app-body:has(> .sidebar:not(.collapsed))::after {
+    background: rgba(0, 0, 0, 0.50);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  [data-theme="glass-light"] .app-body:has(> .sidebar:not(.collapsed))::after {
+    background: rgba(0, 0, 0, 0.20);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  /* ── Sidebar glass cards — tighter on mobile ───────────────── */
+  [data-theme^="glass"] .nav-section {
+    gap: 4px;
+  }
+
+  [data-theme^="glass"] .sidebar-folders {
+    gap: 4px;
+  }
+
+  [data-theme="glass-dark"] .nav-item,
+  [data-theme="glass-dark"] .sidebar-folders > .folder-item,
+  [data-theme="glass-dark"] .folder-item-wrap,
+  [data-theme="glass-dark"] .chat-session-item {
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  [data-theme="glass-light"] .nav-item,
+  [data-theme="glass-light"] .sidebar-folders > .folder-item,
+  [data-theme="glass-light"] .folder-item-wrap,
+  [data-theme="glass-light"] .chat-session-item {
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.7);
+  }
+
+  /* ── Glass view title — clamp down on mobile ───────────────── */
+  [data-theme^="glass"] .view-title {
+    font-size: clamp(20px, 5vw, 28px);
+  }
+
+  /* ── Glass chat welcome — smaller on mobile ────────────────── */
+  [data-theme^="glass"] .chat-welcome-title {
+    font-size: clamp(22px, 5vw, 32px);
+  }
+
+  /* ── Glass note modal header — wrap actions ────────────────── */
+  [data-theme^="glass"] .note-modal-header {
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  [data-theme^="glass"] .note-title-input {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  /* ── Glass modals — full-width on mobile ───────────────────── */
+  [data-theme="glass-dark"] .modal {
+    border-radius: var(--r-lg);
+  }
+
+  [data-theme="glass-light"] .modal {
+    border-radius: var(--r-lg);
+  }
+
+  /* ── Glass auth panel mobile ───────────────────────────────── */
+  [data-theme="glass-dark"] .auth-panel {
+    padding: var(--sp-8) var(--sp-5);
+    border-radius: var(--r-lg);
+  }
+
+  [data-theme="glass-light"] .auth-panel {
+    padding: var(--sp-8) var(--sp-5);
+    border-radius: var(--r-lg);
+  }
+
+  /* ── Glass brand compact on mobile ─────────────────────────── */
+  [data-theme^="glass"] .brand-study {
+    font-size: 18px !important;
+  }
+
+  [data-theme^="glass"] .brand-hub {
+    font-size: 15px;
+    padding: 2px 8px;
+  }
+
+  /* ── Glass user dropdown on mobile ─────────────────────────── */
+  [data-theme="glass-dark"] .user-dropdown,
+  [data-theme="glass-light"] .user-dropdown {
+    min-width: 170px;
+  }
+
+  [data-theme="glass-dark"] .dropdown-item,
+  [data-theme="glass-light"] .dropdown-item {
+    margin: 2px 4px 4px;
+    width: calc(100% - 8px);
+    font-size: 13px;
+  }
+
+  /* ── Glass folder context menu — keep on screen ────────────── */
+  [data-theme^="glass"] .folder-context-menu {
+    max-width: calc(100vw - 24px);
+  }
+
+  /* ── Glass PDF viewer header compact ───────────────────────── */
+  [data-theme^="glass"] .pdf-viewer-header {
+    padding: var(--sp-2) var(--sp-3);
+    gap: var(--sp-2);
+  }
+
+  [data-theme^="glass"] .pdf-viewer-title {
+    max-width: 45vw;
+    font-size: 13px;
+  }
+
+  /* ── Glass suggestion chips — stack on mobile ──────────────── */
+  [data-theme^="glass"] .chat-suggestions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  [data-theme="glass-dark"] .suggestion-chip {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.10);
+  }
+
+  [data-theme="glass-light"] .suggestion-chip {
+    background: rgba(255,255,255,0.45);
+    border-color: rgba(255,255,255,0.7);
+  }
+}
+
+@media (max-width: 480px) {
+  /* ── Glass brand extra compact ──────────────────────────────── */
+  [data-theme^="glass"] .brand-study {
+    font-size: 16px !important;
+  }
+
+  [data-theme^="glass"] .brand-hub {
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+
+  /* ── Glass note modal — full width ─────────────────────────── */
+  [data-theme^="glass"] .note-modal {
+    width: 100%;
+    max-width: 100%;
+    border-radius: var(--r-md);
+  }
+
+  [data-theme^="glass"] .note-modal-header {
+    padding: var(--sp-2) var(--sp-3);
+  }
+
+  [data-theme^="glass"] .note-modal-actions {
+    gap: 2px;
+  }
+
+  /* ── Glass folder modal compact ────────────────────────────── */
+  [data-theme^="glass"] .folder-modal {
+    padding: var(--sp-4);
+  }
+
+  /* ── Glass chat input compact ──────────────────────────────── */
+  [data-theme^="glass"] .chat-input-bar {
+    padding: var(--sp-2) var(--sp-3);
+  }
+
+  /* ── Glass auth panel extra compact ────────────────────────── */
+  [data-theme="glass-dark"] .auth-panel,
+  [data-theme="glass-light"] .auth-panel {
+    padding: var(--sp-6) var(--sp-4);
+  }
+
+  /* ── Glass view title extra small ──────────────────────────── */
+  [data-theme^="glass"] .view-title {
+    font-size: clamp(18px, 4.5vw, 24px);
+  }
+}
+
+@media (max-width: 360px) {
+  /* ── Very narrow screens ───────────────────────────────────── */
+  [data-theme^="glass"] .brand-hub {
+    display: none;
+  }
+
+  [data-theme^="glass"] .theme-style-pill .pill-option {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+}

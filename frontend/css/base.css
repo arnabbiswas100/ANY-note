@@ -72,6 +72,22 @@ h1, h2, h3, .font-display {
   border-radius: var(--r-sm);
 }
 
+.form-success {
+  font-size: 13px;
+  color: var(--success, #43b97f);
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(67, 185, 127, 0.12);
+  border-radius: var(--r-sm);
+}
+
+.auth-subtitle {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-top: calc(-1 * var(--sp-2));
+  margin-bottom: var(--sp-1);
+  line-height: 1.5;
+}
+
 .input-with-toggle {
   position: relative;
 }

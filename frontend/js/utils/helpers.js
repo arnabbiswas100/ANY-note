@@ -2,7 +2,7 @@
    STUDY-HUB — Helpers Utility
    ═══════════════════════════════════════════════════════════════ */
 
-const Helpers = (() => {
+window.Helpers = (() => {
 
   // ── Markdown Renderer ───────────────────────────────────────
   // Lightweight inline renderer (no external deps)

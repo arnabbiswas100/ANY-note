@@ -9,6 +9,7 @@ const rateLimit = require('express-rate-limit');
 const { testConnection } = require('./config/database');
 const routes = require('./routes/index');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
+const { cleanupOrphanedFiles } = require('./controllers/pdfController');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -75,7 +76,16 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // ── Static Frontend ───────────────────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, '../frontend'), {
+// In production: serve from dist/ (Vite build output)
+// In development: serve from frontend/ (raw source — used when running backend only)
+const distDir     = path.join(__dirname, '../dist');
+const frontendDir = path.join(__dirname, '../frontend');
+const fs          = require('fs');
+const staticDir   = (process.env.NODE_ENV === 'production' && fs.existsSync(distDir))
+  ? distDir
+  : frontendDir;
+
+app.use(express.static(staticDir, {
   maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0
 }));
 
@@ -88,12 +98,43 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ success: false, error: 'API route not found' });
   }
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  res.sendFile(path.join(staticDir, 'index.html'));
 });
 
 // ── Error Handling ────────────────────────────────────────────────────────────
 app.use(notFound);
 app.use(errorHandler);
+
+
+// ── Periodic Reconciliation Scheduler ─────────────────────────────────────────
+// Runs the same self-healing cleanup on a timer so long-running servers
+// (weeks/months uptime) don't accumulate orphaned files or stale DB records.
+let cleanupTimer = null;
+
+const startPeriodicCleanup = (uploadDir) => {
+  const intervalHours = parseInt(process.env.CLEANUP_INTERVAL_HOURS, 10) || 6;
+  const intervalMs = intervalHours * 60 * 60 * 1000;
+
+  console.log(`[Scheduler] Periodic reconciliation set to every ${intervalHours}h`);
+
+  cleanupTimer = setInterval(async () => {
+    console.log(`\n[Scheduler] Running periodic reconciliation (every ${intervalHours}h)...`);
+    await cleanupOrphanedFiles(uploadDir);
+  }, intervalMs);
+
+  // Don't let the timer keep Node alive if everything else shuts down
+  if (cleanupTimer.unref) cleanupTimer.unref();
+};
+
+// ── Graceful Shutdown ─────────────────────────────────────────────────────────
+const gracefulShutdown = (signal) => {
+  console.log(`\n[Shutdown] Received ${signal}, cleaning up...`);
+  if (cleanupTimer) clearInterval(cleanupTimer);
+  process.exit(0);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 const start = async () => {
@@ -117,6 +158,13 @@ const start = async () => {
     console.error(' Schema apply failed:', err.message);
     process.exit(1);
   }
+
+  // Clean up orphaned files and stale DB records (startup)
+  const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads/pdfs');
+  await cleanupOrphanedFiles(uploadDir);
+
+  // Schedule periodic reconciliation while server is running
+  startPeriodicCleanup(uploadDir);
 
   app.listen(PORT, () => {
     console.log(`\nSUCCESS: Study-Hub running at http://localhost:${PORT}`);

@@ -2,23 +2,26 @@
    STUDY-HUB — Notes Module
    ═══════════════════════════════════════════════════════════════ */
 
-const Notes = (() => {
+window.Notes = (() => {
   const { toast, show, hide, debounce, formatDate, formatDateLong,
           escHtml, renderMarkdown, truncate } = Helpers;
 
   // ── State ─────────────────────────────────────────────────────
   let state = {
-    notes:          [],
-    folders:        [],
-    activeFolder:   'all',
-    searchQuery:    '',
-    editingNote:    null,   // null = new, id = editing
-    currentColor:   '',
-    currentPinned:  false,
-    iconSelected:   '📁',
-    folderColor:    '',     // color selected in folder modal
-    folderModalMode: 'note', // 'note' | 'pdf'
+    notes:           [],
+    folders:         [],
+    activeFolder:    'all',
+    searchQuery:     '',
+    editingNote:     null,
+    currentColor:    '',
+    currentPinned:   false,
+    iconSelected:    '📁',
+    folderColor:     '',
+    folderModalMode: 'note',
+    newFolderParentId: null,
   };
+
+  let dragSourceId = null;
 
   // ── Note color palette ────────────────────────────────────────
   const COLORS = [
@@ -48,6 +51,32 @@ const Notes = (() => {
     { name: 'gray',   hex: '#8a8480' },
   ];
   const el = (id) => document.getElementById(id);
+
+  // ── Nested folder helpers ──────────────────────────────────────
+  const COLLAPSED_KEY = 'note_collapsed_folders';
+  const getCollapsed = () => new Set(JSON.parse(sessionStorage.getItem(COLLAPSED_KEY) || '[]'));
+  const setCollapsed = (s) => sessionStorage.setItem(COLLAPSED_KEY, JSON.stringify([...s]));
+  const toggleCollapsed = (id) => { const s = getCollapsed(); s.has(id) ? s.delete(id) : s.add(id); setCollapsed(s); };
+
+  const buildFolderTree = (folders) => {
+    const map = {};
+    folders.forEach(f => { map[f.id] = { ...f, children: [] }; });
+    const roots = [];
+    folders.forEach(f => {
+      if (f.parent_id && map[f.parent_id]) map[f.parent_id].children.push(map[f.id]);
+      else roots.push(map[f.id]);
+    });
+    return roots;
+  };
+
+  const getAncestors = (id, folders) => {
+    const map = {};
+    folders.forEach(f => { map[f.id] = f; });
+    const chain = [];
+    let cur = map[id];
+    while (cur) { chain.unshift(cur); cur = cur.parent_id ? map[cur.parent_id] : null; }
+    return chain;
+  };
 
   // ── Load notes ────────────────────────────────────────────────
   const loadNotes = async () => {
@@ -158,62 +187,94 @@ const Notes = (() => {
     return card;
   };
 
-  // ── Render folder sidebar ─────────────────────────────────────
+  // ── Render folder sidebar (nested tree) ───────────────────────
   const renderFolderSidebar = () => {
     const container = el('note-folder-items');
     if (!container) return;
     container.innerHTML = '';
 
-    // Update all notes count
     const fcAll = el('fc-all');
     if (fcAll && state.notes.length) fcAll.textContent = state.notes.length;
 
-    state.folders.forEach(folder => {
-      const item = document.createElement('div');
-      item.className = 'folder-item-wrap';
+    const collapsed = getCollapsed();
+    const tree = buildFolderTree(state.folders);
+
+    const renderNode = (node, depth, target) => {
+      const isActive   = state.activeFolder === String(node.id);
+      const hasKids    = node.children.length > 0;
+      const isCollapsed = collapsed.has(String(node.id));
+      const dotStyle   = node.color ? `background:${node.color};` : 'background:var(--text-3);';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'folder-item-wrap';
+      wrap.style.setProperty('--folder-depth', depth);
+      wrap.dataset.depth = depth;
+      wrap.dataset.id = node.id;
+      wrap.draggable = true;
 
       const btn = document.createElement('button');
-      btn.className = 'folder-item' + (state.activeFolder === String(folder.id) ? ' active' : '');
-      btn.dataset.folder = folder.id;
-
-      // Apply folder color as a left accent if set
-      const dotStyle = folder.color ? `background:${folder.color};` : 'background:var(--text-3);';
-
+      btn.className = 'folder-item' + (isActive ? ' active' : '');
+      btn.dataset.folder = node.id;
       btn.innerHTML = `
+        <span class="folder-expand-btn${hasKids ? (isCollapsed ? '' : ' open') : ' invisible'}" data-eid="${escHtml(String(node.id))}">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
         <span class="folder-color-dot" style="${dotStyle}"></span>
-        <span class="folder-icon">${folder.icon || '📁'}</span>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;">${escHtml(folder.name)}</span>
+        <span class="folder-icon">${node.icon || '📁'}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;">${escHtml(node.name)}</span>
       `;
-      btn.addEventListener('click', () => setActiveFolder(String(folder.id)));
+      btn.addEventListener('click', (e) => {
+        if (e.target.closest('.folder-expand-btn')) {
+          e.stopPropagation(); toggleCollapsed(String(node.id)); renderFolderSidebar(); return;
+        }
+        setActiveFolder(String(node.id));
+      });
 
-      // ⋯ menu button
       const menuBtn = document.createElement('button');
       menuBtn.className = 'folder-menu-btn';
       menuBtn.title = 'Folder options';
       menuBtn.innerHTML = '⋯';
-      menuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openFolderContextMenu(e, folder);
-      });
+      menuBtn.addEventListener('click', (e) => { e.stopPropagation(); openFolderContextMenu(e, node, depth); });
 
-      item.appendChild(btn);
-      item.appendChild(menuBtn);
-      container.appendChild(item);
-    });
+      wrap.appendChild(btn); wrap.appendChild(menuBtn);
+
+      // Drag & drop (same-level reorder)
+      wrap.addEventListener('dragstart', (e) => { dragSourceId = String(node.id); e.dataTransfer.effectAllowed = 'move'; setTimeout(() => wrap.classList.add('dragging'), 0); });
+      wrap.addEventListener('dragend',   () => { dragSourceId = null; wrap.classList.remove('dragging'); document.querySelectorAll('.folder-item-wrap.drag-over').forEach(w => w.classList.remove('drag-over')); });
+      wrap.addEventListener('dragover',  (e) => { if (!dragSourceId || dragSourceId === String(node.id)) return; e.preventDefault(); wrap.classList.add('drag-over'); });
+      wrap.addEventListener('dragleave', () => wrap.classList.remove('drag-over'));
+      wrap.addEventListener('drop',      (e) => { e.preventDefault(); wrap.classList.remove('drag-over'); dragSourceId = null; });
+
+      target.appendChild(wrap);
+
+      if (hasKids) {
+        const childBox = document.createElement('div');
+        childBox.className = 'folder-tree-children' + (isCollapsed ? ' collapsed' : '');
+        node.children.forEach(child => renderNode(child, depth + 1, childBox));
+        target.appendChild(childBox);
+      }
+    };
+
+    tree.forEach(node => renderNode(node, 0, container));
   };
 
-  // ── Render folder select in modal ─────────────────────────────
+  // ── Render folder select in modal (indented hierarchy) ──────────
   const renderFolderSelect = () => {
     const sel = el('note-folder-select');
     if (!sel) return;
     const current = sel.value;
     sel.innerHTML = '<option value="">No folder</option>';
-    state.folders.forEach(f => {
-      const opt = document.createElement('option');
-      opt.value = f.id;
-      opt.textContent = f.name;
-      sel.appendChild(opt);
-    });
+    const tree = buildFolderTree(state.folders);
+    const flatten = (nodes, depth) => {
+      nodes.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = '\u00a0\u00a0'.repeat(depth) + (depth > 0 ? '↳ ' : '') + f.name;
+        sel.appendChild(opt);
+        if (f.children && f.children.length) flatten(f.children, depth + 1);
+      });
+    };
+    flatten(tree, 0);
     sel.value = current;
     syncCustomFolderDropdown();
   };
@@ -271,7 +332,35 @@ const Notes = (() => {
       b.classList.toggle('active', b.dataset.folder === folder);
     });
 
+    renderBreadcrumb();
     loadNotes();
+  };
+
+  // ── Breadcrumb ────────────────────────────────────────────────
+  const renderBreadcrumb = () => {
+    const bc = el('notes-breadcrumb');
+    if (!bc) return;
+    const id = state.activeFolder;
+    if (!id || id === 'all' || id === 'pinned' || id === 'uncategorized') {
+      bc.innerHTML = ''; bc.classList.add('hidden'); return;
+    }
+    const ancestors = getAncestors(id, state.folders);
+    if (!ancestors.length) { bc.innerHTML = ''; bc.classList.add('hidden'); return; }
+    bc.classList.remove('hidden');
+    bc.innerHTML = '';
+    const allItem = document.createElement('span');
+    allItem.className = 'notes-breadcrumb-item';
+    allItem.textContent = 'All Notes';
+    allItem.addEventListener('click', () => setActiveFolder('all'));
+    bc.appendChild(allItem);
+    ancestors.forEach((f, i) => {
+      const sep = document.createElement('span'); sep.className = 'notes-breadcrumb-sep'; sep.textContent = '›'; bc.appendChild(sep);
+      const item = document.createElement('span');
+      item.className = 'notes-breadcrumb-item' + (i === ancestors.length - 1 ? ' current' : '');
+      item.textContent = f.name;
+      if (i < ancestors.length - 1) item.addEventListener('click', () => setActiveFolder(String(f.id)));
+      bc.appendChild(item);
+    });
   };
 
   const getFolderName = (folder) => {
@@ -425,13 +514,14 @@ const Notes = (() => {
   // ── Folder context menu (⋯ button) ────────────────────────────
   let activeContextMenu = null;
 
-  const openFolderContextMenu = (e, folder) => {
-    // Remove any existing menu
+  const openFolderContextMenu = (e, folder, depth = 0) => {
     if (activeContextMenu) activeContextMenu.remove();
 
     const menu = document.createElement('div');
     menu.className = 'folder-context-menu';
+    const subDisabled = depth >= 2 ? ' style="opacity:0.4;pointer-events:none"' : '';
     menu.innerHTML = `
+      <button class="folder-ctx-item" data-action="subfolder"${subDisabled}>📁 New Subfolder</button>
       <button class="folder-ctx-item" data-action="edit">✏️ Edit folder</button>
       <button class="folder-ctx-item danger" data-action="delete">🗑 Delete folder</button>
     `;
@@ -439,16 +529,19 @@ const Notes = (() => {
     document.body.appendChild(menu);
     activeContextMenu = menu;
 
-    // Position near the button
     const rect = e.currentTarget.getBoundingClientRect();
-    const menuW = 160;
+    const menuW = 170;
     let left = rect.left - menuW + rect.width;
     let top  = rect.bottom + 4;
     if (left < 4) left = 4;
-    if (top + 100 > window.innerHeight) top = rect.top - 104;
+    if (top + 120 > window.innerHeight) top = rect.top - 124;
     menu.style.left = left + 'px';
     menu.style.top  = top  + 'px';
 
+    menu.querySelector('[data-action="subfolder"]')?.addEventListener('click', () => {
+      menu.remove(); activeContextMenu = null;
+      if (depth < 2) openFolderModal('note', null, folder.id);
+    });
     menu.querySelector('[data-action="edit"]').addEventListener('click', () => {
       menu.remove(); activeContextMenu = null;
       openFolderModal('note', folder);
@@ -458,7 +551,6 @@ const Notes = (() => {
       deleteFolder(folder);
     });
 
-    // Close on outside click
     setTimeout(() => {
       document.addEventListener('click', function handler() {
         menu.remove(); activeContextMenu = null;
@@ -469,7 +561,7 @@ const Notes = (() => {
 
   // ── Delete folder ─────────────────────────────────────────────
   const deleteFolder = async (folder) => {
-    if (!confirm(`Delete folder "${folder.name}"? Notes inside will become uncategorized.`)) return;
+    if (!confirm(`Delete folder "${folder.name}"?\n\nAll subfolders will also be deleted. Notes inside will become uncategorized.`)) return;
     try {
       await API.notes.deleteFolder(folder.id);
       toast.success('Folder deleted.');
@@ -507,11 +599,12 @@ const Notes = (() => {
   // ── Folder CRUD ───────────────────────────────────────────────
   let folderModalEditId = null;
 
-  const openFolderModal = (mode = 'note', folder = null) => {
+  const openFolderModal = (mode = 'note', folder = null, parentId = null) => {
     state.folderModalMode = mode;
+    state.newFolderParentId = folder ? null : (parentId || null);
     folderModalEditId = folder?.id || null;
 
-    el('folder-modal-title').textContent = folder ? 'Edit Folder' : 'New Folder';
+    el('folder-modal-title').textContent = folder ? 'Edit Folder' : (parentId ? 'New Subfolder' : 'New Folder');
     el('folder-name-input').value = folder?.name || '';
 
     // Reset icon picker
@@ -537,7 +630,11 @@ const Notes = (() => {
     const name = el('folder-name-input')?.value.trim();
     if (!name) { toast.error('Folder name required.'); return; }
 
-    const payload = { name, icon: state.iconSelected, color: state.folderColor || null };
+    // When editing, never send parent_id — it would reset the folder's position in the tree.
+    // parent_id is only sent on create.
+    const payload = folderModalEditId
+      ? { name, icon: state.iconSelected, color: state.folderColor || null }
+      : { name, icon: state.iconSelected, color: state.folderColor || null, parent_id: state.newFolderParentId || null };
 
     try {
       if (state.folderModalMode === 'note') {

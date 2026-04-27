@@ -2,21 +2,30 @@
    STUDY-HUB — Auth Module
    ═══════════════════════════════════════════════════════════════ */
 
-const Auth = (() => {
+window.Auth = (() => {
   const { toast, setLoading, show, hide, getInitials } = Helpers;
 
   // ── Elements ─────────────────────────────────────────────────
   const els = () => ({
+    landing:      document.getElementById('landing-page'),
     authScreen:   document.getElementById('auth-screen'),
     app:          document.getElementById('app'),
     loginForm:    document.getElementById('login-form'),
     registerForm: document.getElementById('register-form'),
+    forgotForm:   document.getElementById('forgot-form'),
+    resetForm:    document.getElementById('reset-form'),
     loginError:   document.getElementById('login-error'),
     registerError:document.getElementById('register-error'),
+    forgotError:  document.getElementById('forgot-error'),
+    forgotSuccess:document.getElementById('forgot-success'),
+    resetError:   document.getElementById('reset-error'),
     loginBtn:     document.getElementById('login-btn'),
     registerBtn:  document.getElementById('register-btn'),
+    forgotBtn:    document.getElementById('forgot-btn'),
+    resetBtn:     document.getElementById('reset-btn'),
     showRegister: document.getElementById('show-register'),
     showLogin:    document.getElementById('show-login'),
+    showForgot:   document.getElementById('show-forgot'),
     logoutBtn:    document.getElementById('logout-btn'),
     userAvatarBtn:document.getElementById('user-avatar-btn'),
     userInitials: document.getElementById('user-avatar-initials'),
@@ -28,18 +37,29 @@ const Auth = (() => {
     regName:      document.getElementById('reg-name'),
     regEmail:     document.getElementById('reg-email'),
     regPass:      document.getElementById('reg-password'),
+    forgotEmail:  document.getElementById('forgot-email'),
+    resetPass:     document.getElementById('reset-password'),
   });
 
   // ── Show / hide screens ───────────────────────────────────────
   const showAuth = () => {
     const e = els();
+    // Hide landing page if it's visible
+    if (e.landing) e.landing.classList.add('hidden');
     show(e.authScreen);
     hide(e.app);
     document.body.style.overflow = 'hidden';
+
+    // Restore saved theme (landing page may have forced glass-light)
+    const style = Storage.get('themeStyle', 'minimal');
+    const mode  = Storage.get('themeMode',  'dark');
+    document.documentElement.dataset.theme = style + '-' + mode;
   };
 
   const showApp = (user) => {
     const e = els();
+    // Hide both landing page and auth screen
+    if (e.landing) e.landing.classList.add('hidden');
     hide(e.authScreen);
     show(e.app);
     document.body.style.overflow = '';
@@ -60,6 +80,8 @@ const Auth = (() => {
     e?.preventDefault();
     const el = els();
     hide(el.loginForm);
+    hide(el.forgotForm);
+    hide(el.resetForm);
     show(el.registerForm);
     hideError(el.loginError);
     el.regName?.focus();
@@ -70,8 +92,32 @@ const Auth = (() => {
     const el = els();
     show(el.loginForm);
     hide(el.registerForm);
+    hide(el.forgotForm);
+    hide(el.resetForm);
     hideError(el.registerError);
     el.loginEmail?.focus();
+  };
+
+  const switchToForgot = (e) => {
+    e?.preventDefault();
+    const el = els();
+    hide(el.loginForm);
+    hide(el.registerForm);
+    hide(el.resetForm);
+    show(el.forgotForm);
+    hideError(el.forgotError);
+    el.forgotSuccess.classList.add('hidden');
+    el.forgotEmail?.focus();
+  };
+
+  const switchToReset = () => {
+    const el = els();
+    hide(el.loginForm);
+    hide(el.registerForm);
+    hide(el.forgotForm);
+    show(el.resetForm);
+    hideError(el.resetError);
+    el.resetPass?.focus();
   };
 
   // ── Error helpers ─────────────────────────────────────────────
@@ -150,12 +196,69 @@ const Auth = (() => {
     }
   };
 
+  // ── Forgot Password ──────────────────────────────────────────
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    const el = els();
+    hideError(el.forgotError);
+    el.forgotSuccess.classList.add('hidden');
+
+    const email = el.forgotEmail.value.trim();
+    setLoading(el.forgotBtn, true);
+
+    try {
+      const data = await API.auth.forgotPassword({ email });
+      el.forgotSuccess.textContent = data.message;
+      el.forgotSuccess.classList.remove('hidden');
+      el.forgotForm.reset();
+    } catch (err) {
+      showError(el.forgotError, err.message);
+    } finally {
+      setLoading(el.forgotBtn, false);
+    }
+  };
+
+  // ── Reset Password ────────────────────────────────────────────
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    const el = els();
+    hideError(el.resetError);
+
+    const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
+    const token = urlParams.get('token');
+    const password = el.resetPass.value;
+
+    if (!token) {
+      showError(el.resetError, 'Reset token is missing. Please use the link from your email.');
+      return;
+    }
+
+    if (password.length < 8) {
+      showError(el.resetError, 'Password must be at least 8 characters.');
+      return;
+    }
+
+    setLoading(el.resetBtn, true);
+
+    try {
+      await API.auth.resetPassword({ token, password });
+      toast.success('Password updated! You can now sign in.');
+      switchToLogin();
+      window.location.hash = ''; // clear hash
+    } catch (err) {
+      showError(el.resetError, err.message);
+    } finally {
+      setLoading(el.resetBtn, false);
+    }
+  };
+
   // ── Logout ────────────────────────────────────────────────────
   const handleLogout = () => {
     Storage.removeToken();
     Storage.removeUser();
     closeDropdown();
-    showAuth();
+    // Go to landing page instead of auth screen
+    Landing.show();
     window.dispatchEvent(new CustomEvent('auth:logout'));
     toast.info('Signed out.');
   };
@@ -186,9 +289,18 @@ const Auth = (() => {
 
   // ── Check existing session ────────────────────────────────────
   const checkSession = async () => {
+    // Check if we are in reset mode first
+    if (window.location.hash.startsWith('#reset-password')) {
+      Landing.hide();
+      showAuth();
+      switchToReset();
+      return false;
+    }
+
     const token = Storage.getToken();
     if (!token) {
-      showAuth();
+      // Show landing page instead of auth screen for new visitors
+      Landing.show();
       return false;
     }
 
@@ -201,7 +313,8 @@ const Auth = (() => {
     } catch {
       Storage.removeToken();
       Storage.removeUser();
-      showAuth();
+      // Show landing page for expired sessions
+      Landing.show();
       return false;
     }
   };
@@ -212,8 +325,14 @@ const Auth = (() => {
 
     el.loginForm?.addEventListener('submit', handleLogin);
     el.registerForm?.addEventListener('submit', handleRegister);
+    el.forgotForm?.addEventListener('submit', handleForgotPassword);
+    el.resetForm?.addEventListener('submit', handleResetPassword);
+
     el.showRegister?.addEventListener('click', switchToRegister);
     el.showLogin?.addEventListener('click', switchToLogin);
+    el.showForgot?.addEventListener('click', switchToForgot);
+    document.querySelectorAll('.back-to-login').forEach(btn => btn.addEventListener('click', switchToLogin));
+
     el.logoutBtn?.addEventListener('click', handleLogout);
     el.userAvatarBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -229,7 +348,7 @@ const Auth = (() => {
 
     // Listen for expired session events
     window.addEventListener('auth:expired', () => {
-      showAuth();
+      Landing.show();
       toast.error('Session expired. Please sign in again.');
     });
 

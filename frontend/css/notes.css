@@ -412,4 +412,75 @@
   .note-markdown-preview {
     max-height: 180px;
   }
+
+  /* Note modal header — wrap actions on mobile */
+  .note-modal-header {
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  .note-title-input {
+    min-width: 0;
+    flex-basis: 100%;
+    font-size: 16px;
+  }
+
+  .note-modal-actions {
+    gap: 2px;
+  }
+
+  .note-modal-footer {
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+  }
 }
+
+/* ── Breadcrumb trail ────────────────────────────────────────── */
+.notes-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 0 0 var(--sp-4) 0;
+  font-size: 12px;
+  color: var(--text-3);
+  min-height: 24px;
+}
+
+.notes-breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  transition: background var(--t-fast), color var(--t-fast);
+  white-space: nowrap;
+}
+
+.notes-breadcrumb-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.notes-breadcrumb-item.current {
+  color: var(--text-2);
+  cursor: default;
+  font-weight: 500;
+}
+
+.notes-breadcrumb-item.current:hover {
+  background: transparent;
+  color: var(--text-2);
+}
+
+.notes-breadcrumb-sep {
+  color: var(--text-3);
+  font-size: 11px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+

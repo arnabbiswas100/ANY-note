@@ -6,3 +6,4 @@ uploads/thumbnails/
 .DS_Store
 .vscode/
 Documentation/
+dist/

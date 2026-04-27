@@ -261,6 +261,17 @@
   color: var(--text);
 }
 
+.dropdown-item--danger:hover {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.dropdown-item-icon {
+  font-size: 13px;
+  margin-right: var(--sp-2);
+  opacity: 0.7;
+}
+
 /* ── App Body ───────────────────────────────────────────────── */
 .app-body {
   display: flex;
@@ -471,7 +482,7 @@
 
 .folder-item-wrap .folder-item {
   flex: 1;
-  padding-right: var(--sp-7); /* room for ⋯ button */
+  padding-right: 28px; /* reserve space for ⋯ button */
 }
 
 .folder-menu-btn {
@@ -647,6 +658,7 @@
   .view-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: var(--sp-3);
   }
 
   .topnav-center {
@@ -655,6 +667,79 @@
 
   .search-kbd { display: none; }
   .nav-logo-text { display: none; }
+
+  /* Topnav compact */
+  .topnav {
+    padding: 0 var(--sp-3);
+    gap: var(--sp-2);
+  }
+
+  .topnav-right {
+    gap: var(--sp-2);
+  }
+
+  /* Compact brand */
+  .brand-study { font-size: 18px; }
+  .brand-hub   { font-size: 15px; padding: 2px 8px; }
+
+  /* Compact theme controls */
+  .theme-style-pill .pill-option {
+    padding: 3px 9px;
+    font-size: 11px;
+  }
+
+  .theme-mode-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .theme-mode-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* Compact user avatar */
+  .user-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+
+  /* View header wrapping */
+  .view-header-left {
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+  }
+
+  .view-title {
+    font-size: 18px;
+  }
+
+  /* Search bar responsive */
+  .search-bar,
+  .search-bar:focus,
+  .notes-search-wrap .search-bar,
+  .notes-search-wrap .search-bar:focus {
+    width: 100%;
+  }
+
+  /* User dropdown mobile positioning */
+  .user-dropdown {
+    right: -4px;
+    min-width: 180px;
+  }
+
+  /* Sidebar scrim overlay */
+  .app-body:has(> .sidebar:not(.collapsed))::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    top: var(--topnav-h);
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 80;
+    pointer-events: none;
+    animation: overlayIn 280ms cubic-bezier(.4, 0, .2, 1) both;
+  }
 }
 
 @media (max-width: 480px) {
@@ -662,11 +747,162 @@
     width: 100%;
   }
 
-  .search-bar {
-    width: 100%;
-  }
-
+  .search-bar,
   .search-bar:focus {
     width: 100%;
   }
+
+  /* Even more compact brand */
+  .brand-study { font-size: 16px; }
+  .brand-hub   { font-size: 13px; padding: 2px 6px; border-radius: 5px; }
+
+  /* Smaller pill */
+  .theme-style-pill .pill-option {
+    padding: 3px 7px;
+    font-size: 10px;
+  }
+
+  /* Toast position */
+  .toast-container {
+    right: var(--sp-3);
+    left: var(--sp-3);
+    bottom: var(--sp-4);
+  }
+
+  .toast {
+    min-width: unset;
+    max-width: 100%;
+  }
 }
+
+@media (max-width: 360px) {
+  /* Very narrow screens — hide pill labels, show just icons approach */
+  .brand-hub { display: none; }
+
+  .theme-style-pill .pill-option {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+
+  .theme-mode-btn {
+    width: 26px;
+    height: 26px;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NESTED FOLDER TREE
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Wrap — no left padding; indentation is handled by .folder-tree-children */
+.folder-item-wrap {
+  --folder-depth: 0;
+  padding-left: 0;
+}
+
+/* Children collapsible container — tree connector lines */
+.folder-tree-children {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+  max-height: 2000px;
+  opacity: 1;
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+  transition: max-height 280ms cubic-bezier(.4, 0, .2, 1),
+              opacity    200ms cubic-bezier(.4, 0, .2, 1);
+}
+
+/* Horizontal branch connecting vertical line to each child card */
+.folder-tree-children > .folder-item-wrap::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  width: 10px;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+.folder-tree-children.collapsed {
+  max-height: 0 !important;
+  opacity: 0;
+}
+
+/* Expand/collapse chevron */
+.folder-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--text-3);
+  border-radius: 3px;
+  transition: transform 240ms cubic-bezier(.4, 0, .2, 1), color var(--t-fast);
+}
+
+.folder-expand-btn svg {
+  display: block;
+  transition: transform 240ms cubic-bezier(.4, 0, .2, 1);
+}
+
+.folder-expand-btn.open svg {
+  transform: rotate(90deg);
+}
+
+.folder-expand-btn.invisible {
+  visibility: hidden;
+}
+
+.folder-expand-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+
+
+/* Drag-and-drop states */
+.folder-item-wrap.dragging {
+  opacity: 0.4;
+}
+
+.folder-item-wrap.drag-over > .folder-item {
+  background: var(--accent-dim);
+  border: 1px dashed var(--border-2);
+}
+
+/* ── Depth-based visual scaling ──────────────────────────────── */
+
+/* Depth 1 — subfolder: slightly smaller text + tighter padding */
+.folder-item-wrap[data-depth="1"] > .folder-item {
+  font-size: 11.5px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.folder-item-wrap[data-depth="1"] > .folder-item .folder-icon { font-size: 11px; }
+.folder-item-wrap[data-depth="1"] > .folder-item .folder-color-dot { width: 6px; height: 6px; }
+.folder-item-wrap[data-depth="1"] > .folder-item .folder-expand-btn { width: 12px; height: 12px; }
+
+/* Depth 2 — sub-subfolder: smallest text + most compact padding */
+.folder-item-wrap[data-depth="2"] > .folder-item {
+  font-size: 10.5px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+.folder-item-wrap[data-depth="2"] > .folder-item .folder-icon { font-size: 10px; }
+.folder-item-wrap[data-depth="2"] > .folder-item .folder-color-dot { width: 5px; height: 5px; }
+.folder-item-wrap[data-depth="2"] > .folder-item .folder-expand-btn { width: 10px; height: 10px; }
+
+
+
+

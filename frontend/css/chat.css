@@ -408,6 +408,123 @@
   position: relative;
 }
 
+/* ── Chat Search Bar (sidebar) ──────────────────────────────── */
+.chat-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+.chat-search-icon {
+  position: absolute;
+  left: calc(var(--sp-2) + 10px);
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  transition: color 200ms cubic-bezier(.4, 0, .2, 1);
+  z-index: 1;
+}
+
+.chat-search-wrap:focus-within .chat-search-icon {
+  color: var(--accent);
+}
+
+.chat-search-input {
+  width: 100%;
+  padding: 7px 30px 7px 32px;
+  background: var(--bg-3);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-full);
+  font-size: 12.5px;
+  color: var(--text);
+  font-family: var(--font-body);
+  transition:
+    border-color 200ms cubic-bezier(.4, 0, .2, 1),
+    box-shadow 280ms cubic-bezier(.4, 0, .2, 1),
+    background 200ms cubic-bezier(.4, 0, .2, 1);
+}
+
+.chat-search-input::placeholder {
+  color: var(--text-3);
+}
+
+.chat-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+  background: var(--bg-2);
+}
+
+/* Hide the native search clear button on webkit */
+.chat-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.chat-search-clear {
+  position: absolute;
+  right: calc(var(--sp-2) + 6px);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-full);
+  font-size: 10px;
+  color: var(--text-3);
+  transition:
+    background 180ms cubic-bezier(.4, 0, .2, 1),
+    color 180ms cubic-bezier(.4, 0, .2, 1),
+    transform 200ms cubic-bezier(.34, 1.2, .64, 1);
+  z-index: 1;
+}
+
+.chat-search-clear:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  transform: scale(1.15);
+}
+
+/* Search result highlight match in session title */
+.chat-search-highlight {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-radius: 2px;
+  padding: 0 1px;
+  font-weight: 600;
+}
+
+/* Search result snippet preview */
+.session-search-snippet {
+  display: block;
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* Empty search state */
+.chat-search-empty {
+  padding: var(--sp-4) var(--sp-3);
+  text-align: center;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chat-search-empty-icon {
+  font-size: 24px;
+  display: block;
+  margin-bottom: var(--sp-1);
+  opacity: 0.5;
+}
+
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .messages-list {
@@ -429,5 +546,10 @@
   .chat-suggestions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .chat-search-input {
+    font-size: 12px;
+    padding: 6px 28px 6px 30px;
   }
 }
