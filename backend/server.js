@@ -142,6 +142,18 @@ const gracefulShutdown = (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
+// ── Process-level Error Guards ────────────────────────────────────────────────
+// Prevent background tasks (e.g. PDF text extraction) from crashing the server.
+// Uncaught exceptions from fire-and-forget async work (like unpdf/pdfjs) are
+// caught here and logged instead of killing the process.
+process.on('uncaughtException', (err) => {
+  console.error('[Process] Uncaught exception (non-fatal):', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Process] Unhandled promise rejection (non-fatal):', reason);
+});
+
 // ── Startup ───────────────────────────────────────────────────────────────────
 const start = async () => {
   console.log('\n Starting Study-Hub...\n');
