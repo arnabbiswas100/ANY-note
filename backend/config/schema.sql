@@ -18,6 +18,27 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- =============================================
+-- USERS TABLE MIGRATIONS (safe to re-run)
+-- =============================================
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='users' AND column_name='name'
+  ) THEN
+    ALTER TABLE users ADD COLUMN name VARCHAR(100) NOT NULL DEFAULT 'User';
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='users' AND column_name='avatar_color'
+  ) THEN
+    ALTER TABLE users ADD COLUMN avatar_color VARCHAR(7) DEFAULT '#6c63ff';
+  END IF;
+END $$;
+
+-- =============================================
 -- NOTE FOLDERS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS note_folders (
