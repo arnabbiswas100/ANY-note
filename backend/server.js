@@ -14,6 +14,11 @@ const { cleanupOrphanedFiles } = require('./controllers/pdfController');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ── Trust Proxy (required for Render / any reverse-proxy host) ────────────────
+// Tells Express to trust the X-Forwarded-For header set by Render's load balancer.
+// Without this, express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set('trust proxy', 1);
+
 // ── Security Headers ─────────────────────────────────────────────────────────
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
