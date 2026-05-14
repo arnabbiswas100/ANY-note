@@ -10,6 +10,7 @@ const { testConnection } = require('./config/database');
 const routes = require('./routes/index');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 const { cleanupOrphanedFiles } = require('./controllers/pdfController');
+const logger = require('./utils/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -121,10 +122,10 @@ const startPeriodicCleanup = (uploadDir) => {
   const intervalHours = parseInt(process.env.CLEANUP_INTERVAL_HOURS, 10) || 6;
   const intervalMs = intervalHours * 60 * 60 * 1000;
 
-  console.log(`[Scheduler] Periodic reconciliation set to every ${intervalHours}h`);
+  logger.info(`[Scheduler] Periodic reconciliation set to every ${intervalHours}h`);
 
   cleanupTimer = setInterval(async () => {
-    console.log(`\n[Scheduler] Running periodic reconciliation (every ${intervalHours}h)...`);
+    logger.info(`[Scheduler] Running periodic reconciliation (every ${intervalHours}h)...`);
     await cleanupOrphanedFiles(uploadDir);
   }, intervalMs);
 
@@ -134,7 +135,7 @@ const startPeriodicCleanup = (uploadDir) => {
 
 // ── Graceful Shutdown ─────────────────────────────────────────────────────────
 const gracefulShutdown = (signal) => {
-  console.log(`\n[Shutdown] Received ${signal}, cleaning up...`);
+  logger.info(`[Shutdown] Received ${signal}, cleaning up...`);
   if (cleanupTimer) clearInterval(cleanupTimer);
   process.exit(0);
 };
@@ -147,20 +148,20 @@ process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 // Uncaught exceptions from fire-and-forget async work (like unpdf/pdfjs) are
 // caught here and logged instead of killing the process.
 process.on('uncaughtException', (err) => {
-  console.error('[Process] Uncaught exception (non-fatal):', err.message);
+  logger.error('[Process] Uncaught exception (non-fatal):', { error: err.message, stack: err.stack });
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('[Process] Unhandled promise rejection (non-fatal):', reason);
+  logger.error('[Process] Unhandled promise rejection (non-fatal):', { reason });
 });
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 const start = async () => {
-  console.log('\n Starting Study-Hub...\n');
+  logger.info('Starting Study-Hub...');
 
   const dbOk = await testConnection();
   if (!dbOk) {
-    console.error('\nERROR: Cannot start without database. Check your .env configuration.\n');
+    logger.error('Cannot start without database. Check your .env configuration.');
     process.exit(1);
   }
 
@@ -171,9 +172,9 @@ const start = async () => {
     const { pool } = require('./config/database');
     const schema = fs.readFileSync(path.join(__dirname, './config/schema.sql'), 'utf-8');
     await pool.query(schema);
-    console.log(' Schema applied successfully');
+    logger.info('Schema applied successfully');
   } catch (err) {
-    console.error(' Schema apply failed:', err.message);
+    logger.error('Schema apply failed:', { error: err.message });
     process.exit(1);
   }
 
@@ -185,14 +186,14 @@ const start = async () => {
   startPeriodicCleanup(uploadDir);
 
   app.listen(PORT, () => {
-    console.log(`\nSUCCESS: Study-Hub running at http://localhost:${PORT}`);
-    console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`   API Base: http://localhost:${PORT}/api\n`);
+    logger.info(`SUCCESS: Study-Hub running at http://localhost:${PORT}`);
+    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`API Base: http://localhost:${PORT}/api`);
   });
 };
 
 start().catch(err => {
-  console.error('Fatal startup error:', err);
+  logger.error('Fatal startup error:', { error: err });
   process.exit(1);
 });
 

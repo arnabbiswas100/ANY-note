@@ -1,8 +1,7 @@
+const logger = require('../utils/logger');
+
 const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err.message);
-  if (process.env.NODE_ENV === 'development') {
-    console.error('Stack:', err.stack);
-  }
+  logger.error(`${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`, { stack: err.stack });
 
   // Multer errors
   if (err.code === 'LIMIT_FILE_SIZE') {
