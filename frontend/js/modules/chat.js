@@ -1209,6 +1209,55 @@ window.Chat = (() => {
   // Ollama mode — model fetching + toggle
   // ─────────────────────────────────────────────────────────────
 
+  const syncCustomModelDropdown = () => {
+    const sel      = el('ollama-model-select');
+    const dropdown = el('ollama-model-select-dropdown');
+    const label    = el('ollama-model-select-label');
+    if (!sel || !dropdown) return;
+
+    dropdown.innerHTML = '';
+    Array.from(sel.options).forEach(opt => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'folder-select-option' + (opt.value === sel.value ? ' selected' : '');
+      btn.textContent = opt.text;
+      btn.dataset.value = opt.value;
+      if (opt.disabled) {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+      } else {
+        btn.addEventListener('click', () => {
+          sel.value = opt.value;
+          sel.dispatchEvent(new Event('change'));
+          if (label) label.textContent = opt.text;
+          dropdown.querySelectorAll('.folder-select-option').forEach(b =>
+            b.classList.toggle('selected', b.dataset.value === opt.value)
+          );
+          dropdown.classList.add('hidden');
+        });
+      }
+      dropdown.appendChild(btn);
+    });
+
+    const selectedOpt = sel.options[sel.selectedIndex];
+    if (label && selectedOpt) label.textContent = selectedOpt.text;
+  };
+
+  const initCustomModelDropdown = () => {
+    const btn      = el('ollama-model-select-btn');
+    const dropdown = el('ollama-model-select-dropdown');
+    if (!btn || !dropdown) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      syncCustomModelDropdown();
+      dropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', () => dropdown.classList.add('hidden'));
+  };
+
   /**
    * Fetch models from /api/ollama/models and populate the <select>.
    * showToast = false on silent background refreshes.
@@ -1256,11 +1305,15 @@ window.Chat = (() => {
         statusDot.title     = `${models.length} model${models.length !== 1 ? 's' : ''} available`;
       }
 
+      syncCustomModelDropdown();
+
     } catch (err) {
       select.innerHTML = '<option value="" disabled selected>Ollama offline</option>';
       select.disabled  = true;
       if (statusDot) { statusDot.className = 'ollama-status-dot offline'; statusDot.title = 'Ollama not reachable'; }
       if (showToast) toast.error('Cannot reach Ollama — is it running? (' + err.message + ')');
+      
+      syncCustomModelDropdown();
     }
   };
 
@@ -1299,6 +1352,8 @@ window.Chat = (() => {
   // ─────────────────────────────────────────────────────────────
 
   const init = () => {
+    initCustomModelDropdown();
+
     // New chat button
     el('new-chat-btn')?.addEventListener('click', () => {
       state.activeSession = null;

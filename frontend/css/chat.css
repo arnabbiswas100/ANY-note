@@ -810,8 +810,12 @@
   user-select: none;
 }
 
-.ollama-model-select {
+.ollama-model-select-btn {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
   max-width: 320px;
   background: var(--bg-3);
@@ -827,35 +831,33 @@
     border-color var(--t-fast),
     box-shadow var(--t-fast),
     background var(--t-fast);
-  /* truncate long model names */
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
 }
 
-.ollama-model-select:focus {
+.ollama-model-select-btn:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-dim);
 }
 
-.ollama-model-select:disabled {
+.ollama-model-select-btn:disabled {
   color: var(--text-3);
   cursor: not-allowed;
   opacity: 0.7;
 }
 
-.ollama-model-select option {
-  background: var(--bg-2);
-  color: var(--text);
+#ollama-model-select-label {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 250px;
 }
 
 /* Glass model select */
-[data-theme="glass-dark"] .ollama-model-select {
+[data-theme="glass-dark"] .ollama-model-select-btn {
   background: rgba(255,255,255,0.05);
   border-color: rgba(255,255,255,0.10);
 }
 
-[data-theme="glass-light"] .ollama-model-select {
+[data-theme="glass-light"] .ollama-model-select-btn {
   background: rgba(255,255,255,0.40);
   border-color: rgba(0,0,0,0.08);
 }

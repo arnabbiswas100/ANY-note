@@ -471,9 +471,16 @@
               <!-- Ollama model selector — hidden in API mode -->
               <div class="ollama-model-wrap hidden" id="ollama-model-wrap">
                 <span class="ollama-sep">·</span>
-                <select class="ollama-model-select" id="ollama-model-select" title="Select local model">
+                <select class="ollama-model-select" id="ollama-model-select" title="Select local model" style="display:none">
                   <option value="" disabled selected>Loading…</option>
                 </select>
+                <div class="folder-select-custom folder-select-wrap" id="ollama-model-select-custom">
+                  <button class="folder-select-btn ollama-model-select-btn" id="ollama-model-select-btn" type="button" title="Select local model">
+                    <span id="ollama-model-select-label">Loading…</span>
+                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <div class="folder-select-dropdown hidden" id="ollama-model-select-dropdown" style="bottom: 100%; top: auto; margin-bottom: 8px;"></div>
+                </div>
                 <button class="ollama-refresh-btn" id="ollama-refresh-btn" title="Refresh model list" aria-label="Refresh models">↻</button>
                 <span class="ollama-status-dot" id="ollama-status-dot"></span>
               </div>
