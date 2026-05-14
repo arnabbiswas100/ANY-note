@@ -15,6 +15,8 @@ Study-Hub is a powerful, local-first platform designed to organize your notes, m
 - 📄 **PDF Library:** Upload and process PDFs for in-browser reading and fast text extraction.
 - 🧠 **Local AI Context:** Chat seamlessly with an AI that dynamically references your notes and PDFs. Fully supports local AI models through [Ollama](https://ollama.com/), ensuring absolute data privacy.
 - 🌓 **Dynamic Interface:** Switch effortlessly between "Minimal" and "Glassmorphism" design themes, complete with a beautiful split-pane streaming desktop layout.
+- 🗄️ **Robust Logging:** Centralized, persistent error recording with automatic daily log rotation using Winston.
+- 🧪 **Unit Testing:** Blazing-fast backend unit testing framework powered by Vitest and Supertest.
 - 🔒 **Privacy-First Infrastructure:** Everything from your database to your AI models runs completely offline and locally.
 
 ---
