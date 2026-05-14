@@ -151,5 +151,25 @@ window.API = (() => {
     searchSessions: (q)          => get(`/chat/sessions/search?q=${encodeURIComponent(q)}`),
   };
 
-  return { get, post, put, patch, del, upload, auth, notes, pdfs, chat };
+  // ── Ollama ────────────────────────────────────────────────────
+  const ollama = {
+    getModels:   () => get('/ollama/models'),
+    /**
+     * Returns a raw fetch Response for the SSE stream.
+     * The caller handles reading — we just attach auth headers here.
+     */
+    streamChat: (sessionId, body) => {
+      const token = Storage.getToken();
+      return fetch(`/api/ollama/stream/${sessionId}`, {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+    },
+  };
+
+  return { get, post, put, patch, del, upload, auth, notes, pdfs, chat, ollama };
 })();

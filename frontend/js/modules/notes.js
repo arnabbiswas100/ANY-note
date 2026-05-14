@@ -800,6 +800,8 @@ window.Notes = (() => {
         saveNote();
       }
     });
+
+    window.addEventListener('notes:refresh', loadNotes);
   };
 
   const load = async () => {

@@ -457,10 +457,35 @@
 
           <!-- Chat Input -->
           <div class="chat-input-bar">
+
+            <!-- Mode header: API ↔ Ollama toggle + model selector -->
+            <div class="chat-mode-header" id="chat-mode-header">
+              <div class="chat-mode-toggle" id="chat-mode-toggle">
+                <button class="mode-pill active" id="mode-api-btn" data-mode="api">
+                  <span class="mode-pill-dot"></span>API
+                </button>
+                <button class="mode-pill" id="mode-ollama-btn" data-mode="ollama">
+                  <span class="mode-pill-dot"></span>Local
+                </button>
+              </div>
+              <!-- Ollama model selector — hidden in API mode -->
+              <div class="ollama-model-wrap hidden" id="ollama-model-wrap">
+                <span class="ollama-sep">·</span>
+                <select class="ollama-model-select" id="ollama-model-select" title="Select local model">
+                  <option value="" disabled selected>Loading…</option>
+                </select>
+                <button class="ollama-refresh-btn" id="ollama-refresh-btn" title="Refresh model list" aria-label="Refresh models">↻</button>
+                <span class="ollama-status-dot" id="ollama-status-dot"></span>
+              </div>
+            </div>
+
+            <!-- Context badge -->
             <div class="chat-context-badge hidden" id="chat-context-badge">
               <span id="chat-context-label"></span>
               <button class="clear-context" id="clear-context-btn">×</button>
             </div>
+
+            <!-- Text input row -->
             <div class="chat-input-wrap">
               <button class="chat-attach-btn" id="chat-attach-btn" title="Attach context">
                 <span>⊕</span>

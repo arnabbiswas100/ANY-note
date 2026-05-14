@@ -21,6 +21,10 @@ window.Chat = (() => {
       notes:   [],   // full objects for display
       pdfs:    [],
     },
+    // ── Ollama mode ──────────────────────────────────────────────
+    ollamaMode:   false,   // true = use local Ollama instead of API
+    ollamaModel:  null,    // currently selected model name string
+    ollamaModels: [],      // full list fetched from /api/ollama/models
   };
 
   const el = (id) => document.getElementById(id);
@@ -404,23 +408,117 @@ window.Chat = (() => {
     });
   };
 
+  const createAddToNotesBtn = (content) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'add-to-notes-wrap';
+    const btn = document.createElement('button');
+    btn.className = 'add-to-notes-btn';
+    btn.innerHTML = `<i class="ti ti-notebook"></i> Save to Notes`;
+    btn.onclick = async () => {
+      btn.disabled = true;
+      btn.innerHTML = `<i class="ti ti-loader icon-spin"></i> Saving...`;
+      try {
+        const titleMatch = content.match(/^#\s+(.+)/m);
+        let title = titleMatch ? titleMatch[1] : content.substring(0, 50).replace(/<[^>]+>/g, '').trim();
+        if (!title) title = 'Saved from Chat';
+        if (title.length >= 50) title += '...';
+        
+        await API.notes.create({ title, content });
+        btn.innerHTML = `<i class="ti ti-check"></i> Saved to Notes`;
+        toast.success('Added to notes');
+        window.dispatchEvent(new CustomEvent('notes:refresh'));
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="ti ti-notebook"></i> Save to Notes`;
+        toast.error('Failed to save note: ' + err.message);
+      }
+    };
+    wrap.appendChild(btn);
+    return wrap;
+  };
+
   const buildMessageBubble = (msg) => {
     const isUser = msg.role === 'user';
     const wrap   = document.createElement('div');
-    wrap.className = `message-wrap ${isUser ? 'user' : 'assistant'}`;
+    const isDesktop = window.innerWidth >= 1024;
+
+    // Detect if this should be a split-view (AI message with <think> tags on desktop)
+    const hasThink = !isUser && msg.content && msg.content.includes('<think>');
+    const useSplit = isDesktop && hasThink;
+
+    wrap.className = `message ${isUser ? 'user' : 'ai'}${useSplit ? ' split-mode' : ''}`;
     wrap.dataset.id = msg.id || '';
 
-    const contentHtml = isUser
-      ? `<p>${escHtml(msg.content)}</p>`
-      : renderMarkdown(msg.content);
+    // Avatar
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = isUser ? (Storage.getUser()?.name?.charAt(0) || 'U') : 'AI';
+    wrap.appendChild(avatar);
 
-    wrap.innerHTML = `
-      <div class="message-bubble ${isUser ? 'user-bubble' : 'ai-bubble'}">
-        ${!isUser ? '<span class="ai-label">Study-Hub AI</span>' : ''}
+    // Bubble container
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble';
+
+    if (useSplit) {
+      // Split layout parsing
+      const openTag = '<think>';
+      const closeTag = '</think>';
+      const openIdx = msg.content.indexOf(openTag);
+      const closeIdx = msg.content.indexOf(closeTag, openIdx + openTag.length);
+
+      let thinkContent = '';
+      let answerContent = msg.content;
+
+      if (openIdx !== -1 && closeIdx !== -1) {
+        thinkContent = msg.content.substring(openIdx + openTag.length, closeIdx);
+        answerContent = msg.content.substring(0, openIdx) + msg.content.substring(closeIdx + closeTag.length);
+      }
+
+      bubble.innerHTML = `
+        <div class="split-panel split-left">
+          <div class="split-label"><span>Draft & Thinking</span></div>
+          <div class="think-content" style="white-space: pre-wrap; font-family: monospace; font-size: 12px; color: var(--text-3);">${escHtml(thinkContent)}</div>
+          <div class="raw-content" style="white-space: pre-wrap; margin-top: 10px; font-size: 12px; opacity: 0.7;">${escHtml(answerContent)}</div>
+        </div>
+        <div class="split-panel split-right">
+          <div class="split-label"><span>Final Response</span></div>
+          <div class="message-content">${renderMarkdown(answerContent)}</div>
+          <span class="message-time">${msg.created_at ? formatDate(msg.created_at) : ''}</span>
+        </div>
+      `;
+      if (!isUser) {
+        bubble.querySelector('.split-right').appendChild(createAddToNotesBtn(answerContent));
+      }
+    } else {
+      // Traditional bubble
+      const contentHtml = isUser
+        ? `<p>${escHtml(msg.content)}</p>`
+        : renderMarkdown(msg.content);
+
+      bubble.innerHTML = `
         <div class="message-content">${contentHtml}</div>
         <span class="message-time">${msg.created_at ? formatDate(msg.created_at) : ''}</span>
-      </div>
-    `;
+      `;
+      if (!isUser) {
+        bubble.appendChild(createAddToNotesBtn(msg.content));
+      }
+    }
+
+    bubble.addEventListener('click', (e) => {
+      const toggleBtn = e.target.closest('.think-toggle');
+      if (toggleBtn) {
+        const thinkingSection = toggleBtn.closest('.think-block');
+        const body = thinkingSection.querySelector('.think-body');
+        const icon = thinkingSection.querySelector('.think-toggle-icon');
+        const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+        
+        toggleBtn.setAttribute('aria-expanded', String(!expanded));
+        body.classList.toggle('think-body--collapsed', expanded);
+        icon.textContent = expanded ? '▸' : '▾';
+      }
+    });
+
+    wrap.appendChild(bubble);
     return wrap;
   };
 
@@ -433,9 +531,18 @@ window.Chat = (() => {
     scrollToBottom();
   };
 
-  const scrollToBottom = (instant = false) => {
+  const scrollToBottom = (instant = false, force = false) => {
     const container = el('chat-messages');
     if (!container) return;
+    
+    // Smart scroll: only scroll if the user is already near the bottom,
+    // OR if we are explicitly forcing it (e.g. initial message creation).
+    if (!force && state.isStreaming) {
+      const threshold = 150;
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+      if (!isNearBottom) return; // Allow user to scroll up without being forced down
+    }
+
     if (instant) {
       container.scrollTop = container.scrollHeight;
     } else {
@@ -476,21 +583,30 @@ window.Chat = (() => {
     appendMessage(userMsg);
     showMessagesView();
 
-    // Show typing indicator
+    // Ollama mode → streaming path
+    if (state.ollamaMode && state.ollamaModel) {
+      await sendMessageStreaming(content);
+    } else {
+      await sendMessageApi(content);
+    }
+  };
+
+  // ── Non-streaming path (API / OpenRouter) ──────────────────────
+  const sendMessageApi = async (content) => {
+    const sendBtn = el('chat-send-btn');
+    const input   = el('chat-input');
     const typingEl = showTypingIndicator();
 
     try {
       const body = {
-        content:          content,
+        content,
         context_note_ids: state.context.noteIds,
         context_pdf_ids:  state.context.pdfIds,
       };
 
       const data = await API.chat.sendMessage(state.activeSession.id, body);
-
       removeTypingIndicator(typingEl);
 
-      // Extract the AI response content — always show it in chat
       const aiContent = data.assistantMessage?.content
         || data.message?.content
         || data.content
@@ -498,22 +614,20 @@ window.Chat = (() => {
         || data.data?.content
         || 'No response.';
 
-      const aiMsg = {
+      appendMessage({
         role: 'assistant',
         content: aiContent,
         created_at: new Date().toISOString(),
         id: data.assistantMessage?.id || data.message?.id || data.id,
-      };
-      appendMessage(aiMsg);
+      });
 
     } catch (err) {
       removeTypingIndicator(typingEl);
-      const errMsg = {
+      appendMessage({
         role: 'assistant',
         content: `⚠️ Error: ${err.message}`,
         created_at: new Date().toISOString(),
-      };
-      appendMessage(errMsg);
+      });
       toast.error('Message failed: ' + err.message);
     } finally {
       state.isStreaming = false;
@@ -521,6 +635,305 @@ window.Chat = (() => {
       sendBtn.disabled = false;
       input.focus();
     }
+  };
+
+  // ── Streaming path (Ollama local) ──────────────────────────────
+  const sendMessageStreaming = async (content) => {
+    const sendBtn = el('chat-send-btn');
+    const input   = el('chat-input');
+
+    // Create the streaming bubble in DOM
+    const { wrap, bubble, isDesktop } = createStreamingBubble();
+    const list = el('messages-list');
+    list?.appendChild(wrap);
+    scrollToBottom(true, true); // Force scroll on initial bubble creation
+
+    let fullText      = '';  // everything the model wrote (think + answer)
+    let thinkBuf      = '';  // accumulates text inside <think>...</think>
+    let answerBuf     = '';  // accumulates text outside think tags
+    let inThink       = false;
+    let thinkDone     = false;
+
+    // Helper: parse fullText from scratch to avoid chunking boundary issues
+    const processToken = (token) => {
+      fullText += token;
+
+      const openTag = '<think>';
+      const closeTag = '</think>';
+
+      const openIdx = fullText.indexOf(openTag);
+      if (openIdx !== -1) {
+        const closeIdx = fullText.indexOf(closeTag, openIdx + openTag.length);
+        if (closeIdx !== -1) {
+          thinkBuf = fullText.substring(openIdx + openTag.length, closeIdx);
+          answerBuf = fullText.substring(0, openIdx) + fullText.substring(closeIdx + closeTag.length);
+          inThink = false;
+          thinkDone = true;
+        } else {
+          thinkBuf = fullText.substring(openIdx + openTag.length);
+          answerBuf = fullText.substring(0, openIdx);
+          inThink = true;
+          thinkDone = false;
+        }
+      } else {
+        // No complete <think> yet. Avoid flashing partial tags like `<thi` in answer.
+        thinkBuf = '';
+        answerBuf = fullText;
+        const match = answerBuf.match(/<t[hink]*$/);
+        if (match) {
+           answerBuf = answerBuf.substring(0, match.index);
+        }
+        if (answerBuf === '<') answerBuf = '';
+      }
+    };
+
+    try {
+      const body = {
+        content,
+        context_note_ids: state.context.noteIds,
+        context_pdf_ids:  state.context.pdfIds,
+        ollama_model:     state.ollamaModel,
+      };
+
+      const response = await API.ollama.streamChat(state.activeSession.id, body);
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        throw new Error(err.error || `HTTP ${response.status}`);
+      }
+
+      const reader  = response.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = '';
+
+      // Read SSE stream
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+
+        // SSE frames are separated by double newlines
+        const frames = sseBuffer.split('\n\n');
+        sseBuffer = frames.pop(); // keep last incomplete frame
+
+        for (const frame of frames) {
+          for (const line of frame.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            const raw = line.slice(6).trim();
+            if (!raw) continue;
+            try {
+              const evt = JSON.parse(raw);
+              if (evt.type === 'token')  { processToken(evt.content); updateStreamingBubble(bubble, thinkBuf, answerBuf, inThink, thinkDone, isDesktop); scrollToBottom(); }
+              if (evt.type === 'error')  { throw new Error(evt.error); }
+              if (evt.type === 'done')   { /* stream finished */ }
+            } catch (parseErr) {
+              if (parseErr.message !== 'Unexpected end of JSON input') throw parseErr;
+            }
+          }
+        }
+      }
+
+      // Finalise bubble — render full markdown for the answer
+      finaliseStreamingBubble(wrap, bubble, thinkBuf, answerBuf, isDesktop);
+
+      // Add to internal messages state (without DB round-trip — already saved server-side)
+      state.messages.push({
+        role: 'assistant',
+        content: fullText,
+        created_at: new Date().toISOString(),
+      });
+
+    } catch (err) {
+      // Replace streaming bubble with error message
+      wrap.innerHTML = `
+        <div class="message-bubble ai-bubble">
+          <span class="ai-label">Study-Hub AI</span>
+          <div class="message-content"><p>⚠️ ${escHtml(err.message)}</p></div>
+        </div>`;
+      toast.error('Streaming failed: ' + err.message);
+    } finally {
+      state.isStreaming = false;
+      _sendLock = false;
+      sendBtn.disabled = false;
+      input.focus();
+      scrollToBottom();
+    }
+  };
+
+  // ── Streaming bubble DOM helpers ───────────────────────────────
+
+  /**
+   * Build the initial empty streaming bubble with split-view support.
+   */
+  const createStreamingBubble = () => {
+    const isDesktop = window.innerWidth >= 1024;
+    const wrap = document.createElement('div');
+    wrap.className = `message ai streaming-wrap${isDesktop ? ' split-mode' : ''}`;
+
+    // Avatar
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = 'AI';
+    wrap.appendChild(avatar);
+
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble';
+
+    if (isDesktop) {
+      bubble.innerHTML = `
+        <div class="split-panel split-left">
+          <div class="split-label"><span>Draft & Thinking</span></div>
+          <div class="think-block hidden">
+            <button class="think-toggle" aria-expanded="true" aria-label="Toggle thinking">
+              <span class="think-toggle-icon">▾</span>
+              <span class="think-toggle-label">Thinking…</span>
+            </button>
+            <div class="think-body">
+              <div class="think-content"></div>
+            </div>
+          </div>
+          <div class="stream-raw" style="white-space: pre-wrap; font-family: monospace; font-size: 12px; margin-top: 10px;"></div>
+        </div>
+        <div class="split-panel split-right">
+          <div class="split-label"><span>Final Response</span></div>
+          <div class="message-content stream-content waiting-state">
+            <div class="waiting-container">
+              <div class="waiting-text connecting-anim">Connecting to the model...</div>
+              <div class="waiting-sub">Please wait while the stream initializes.</div>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      bubble.innerHTML = `
+        <div class="message-content stream-content connecting-state">
+          <span class="connecting-text">connecting to the model ...</span><span class="stream-cursor"></span>
+        </div>`;
+    }
+
+    bubble.addEventListener('click', (e) => {
+      const toggleBtn = e.target.closest('.think-toggle');
+      if (toggleBtn) {
+        const thinkingSection = toggleBtn.closest('.think-block');
+        const body = thinkingSection.querySelector('.think-body');
+        const icon = thinkingSection.querySelector('.think-toggle-icon');
+        const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+        
+        toggleBtn.setAttribute('aria-expanded', String(!expanded));
+        body.classList.toggle('think-body--collapsed', expanded);
+        icon.textContent = expanded ? '▸' : '▾';
+      }
+    });
+
+    wrap.appendChild(bubble);
+    return { wrap, bubble, isDesktop };
+  };
+
+  /**
+   * Update the streaming bubble with new tokens.
+   */
+  const updateStreamingBubble = (bubble, thinkBuf, answerBuf, inThink, thinkDone, isDesktop) => {
+    if (isDesktop) {
+      const thinkingSection = bubble.querySelector('.think-block');
+      const rawSection = bubble.querySelector('.stream-raw');
+      const rightPanel = bubble.querySelector('.split-right .message-content');
+
+      // Show thinking block
+      if (thinkBuf && thinkingSection && thinkingSection.classList.contains('hidden')) {
+        thinkingSection.classList.remove('hidden');
+      }
+
+      // Update thinking content
+      const thinkContent = bubble.querySelector('.think-content');
+      if (thinkContent && thinkBuf) thinkContent.textContent = thinkBuf;
+
+      // Update raw stream (left)
+      if (rawSection && answerBuf) {
+        rawSection.textContent = answerBuf;
+        // Optional cursor for raw
+        const cursor = document.createElement('span');
+        cursor.className = 'stream-cursor';
+        rawSection.appendChild(cursor);
+      }
+
+      // Update right panel (waiting -> final)
+      if (rightPanel && rightPanel.classList.contains('waiting-state')) {
+        const waitingText = rightPanel.querySelector('.waiting-text');
+        const waitingSub = rightPanel.querySelector('.waiting-sub');
+        
+        if (answerBuf) {
+          // Transition to final response when answerBuf arrives
+          rightPanel.classList.remove('waiting-state');
+          rightPanel.innerHTML = '<span class="stream-cursor"></span>';
+        } else if (thinkBuf && waitingText) {
+          // Update waiting text while thinking
+          waitingText.textContent = 'The model is thinking...';
+          if (waitingSub) waitingSub.textContent = 'Drafting the final response.';
+        }
+      }
+    } else {
+      // Traditional mobile update
+      const streamContent = bubble.querySelector('.stream-content');
+      if (streamContent) {
+        if (answerBuf || thinkBuf) {
+          streamContent.classList.remove('connecting-state');
+          streamContent.textContent = answerBuf;
+        }
+        const cursor = document.createElement('span');
+        cursor.className = 'stream-cursor';
+        streamContent.appendChild(cursor);
+      }
+    }
+  };
+
+  /**
+   * Finalise the streaming bubble.
+   */
+  const finaliseStreamingBubble = (wrap, bubble, thinkBuf, answerBuf, isDesktop) => {
+    if (isDesktop) {
+      const rightContent = bubble.querySelector('.split-right .message-content');
+      const rawSection = bubble.querySelector('.stream-raw');
+
+      if (rightContent) {
+        rightContent.innerHTML = renderMarkdown(answerBuf || '(no response)');
+      }
+      if (rawSection) {
+        const cursor = rawSection.querySelector('.stream-cursor');
+        if (cursor) cursor.remove();
+      }
+
+      // Ensure thinking block is handled
+      const thinkingSection = bubble.querySelector('.think-block');
+      if (thinkingSection && thinkBuf) {
+        const body = thinkingSection.querySelector('.think-body');
+        const icon = thinkingSection.querySelector('.think-toggle-icon');
+        const label = thinkingSection.querySelector('.think-toggle-label');
+        body?.classList.add('think-body--collapsed');
+        if (icon) icon.textContent = '▸';
+        if (label) label.textContent = 'Thought';
+      }
+
+      const time = document.createElement('span');
+      time.className = 'message-time';
+      time.textContent = formatDate(new Date().toISOString());
+      bubble.querySelector('.split-right').appendChild(time);
+      bubble.querySelector('.split-right').appendChild(createAddToNotesBtn(answerBuf));
+    } else {
+      const streamContent = bubble.querySelector('.stream-content');
+      if (streamContent) {
+        streamContent.className = 'message-content';
+        streamContent.innerHTML = renderMarkdown(answerBuf || '(no response)');
+      }
+      const time = document.createElement('span');
+      time.className = 'message-time';
+      time.textContent = formatDate(new Date().toISOString());
+      bubble.appendChild(time);
+      bubble.appendChild(createAddToNotesBtn(answerBuf));
+    }
+
+    wrap.classList.remove('streaming-wrap');
+    scrollToBottom(false, true); // Force final scroll
   };
 
   const showTypingIndicator = () => {
@@ -793,6 +1206,95 @@ window.Chat = (() => {
   };
 
   // ─────────────────────────────────────────────────────────────
+  // Ollama mode — model fetching + toggle
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Fetch models from /api/ollama/models and populate the <select>.
+   * showToast = false on silent background refreshes.
+   */
+  const fetchOllamaModels = async (showToast = true) => {
+    const select      = el('ollama-model-select');
+    const refreshBtn  = el('ollama-refresh-btn');
+    const statusDot   = el('ollama-status-dot');
+
+    if (!select) return;
+
+    // Spin the refresh button visually
+    if (refreshBtn) {
+      refreshBtn.classList.add('spinning');
+      setTimeout(() => refreshBtn.classList.remove('spinning'), 600);
+    }
+
+    try {
+      const data   = await API.ollama.getModels();
+      const models = data.models || [];
+      state.ollamaModels = models;
+
+      if (models.length === 0) {
+        select.innerHTML = '<option value="" disabled selected>No models — run: ollama pull &lt;model&gt;</option>';
+        select.disabled  = true;
+        if (statusDot) { statusDot.className = 'ollama-status-dot offline'; statusDot.title = 'No models found'; }
+        if (showToast) toast.error('No Ollama models found. Pull a model first.');
+        return;
+      }
+
+      select.disabled = false;
+
+      // Preserve the previously selected model if still available
+      const prev = state.ollamaModel;
+      select.innerHTML = models
+        .map(m => `<option value="${escHtml(m.name)}">${escHtml(m.name)}</option>`)
+        .join('');
+
+      const stillAvailable = prev && models.some(m => m.name === prev);
+      select.value     = stillAvailable ? prev : models[0].name;
+      state.ollamaModel = select.value;
+
+      if (statusDot) {
+        statusDot.className = 'ollama-status-dot online';
+        statusDot.title     = `${models.length} model${models.length !== 1 ? 's' : ''} available`;
+      }
+
+    } catch (err) {
+      select.innerHTML = '<option value="" disabled selected>Ollama offline</option>';
+      select.disabled  = true;
+      if (statusDot) { statusDot.className = 'ollama-status-dot offline'; statusDot.title = 'Ollama not reachable'; }
+      if (showToast) toast.error('Cannot reach Ollama — is it running? (' + err.message + ')');
+    }
+  };
+
+  /**
+   * Switch between API mode and Ollama mode.
+   * Persists the choice in localStorage so it survives page reloads.
+   */
+  const setOllamaMode = (enabled) => {
+    state.ollamaMode = enabled;
+
+    const apiBtn    = el('mode-api-btn');
+    const ollamaBtn = el('mode-ollama-btn');
+    const modelWrap = el('ollama-model-wrap');
+
+    // Update pill active states
+    apiBtn?.classList.toggle('active', !enabled);
+    ollamaBtn?.classList.toggle('active', enabled);
+
+    // Show / hide the model selector
+    if (modelWrap) {
+      if (enabled) { modelWrap.classList.remove('hidden'); }
+      else         { modelWrap.classList.add('hidden'); }
+    }
+
+    // Fetch models the first time we switch to Ollama mode
+    if (enabled && state.ollamaModels.length === 0) {
+      fetchOllamaModels(true);
+    }
+
+    // Persist preference
+    try { localStorage.setItem('sh_ollama_mode', enabled ? '1' : '0'); } catch { /* ignore */ }
+  };
+
+  // ─────────────────────────────────────────────────────────────
   // Init
   // ─────────────────────────────────────────────────────────────
 
@@ -880,6 +1382,31 @@ window.Chat = (() => {
     window.addEventListener('chat:attach-pdf', (e) => {
       attachPDF(e.detail.pdf);
     });
+
+    // ── Ollama mode ──────────────────────────────────────────────────
+    el('mode-api-btn')?.addEventListener('click', () => {
+      if (state.ollamaMode) setOllamaMode(false);
+    });
+
+    el('mode-ollama-btn')?.addEventListener('click', () => {
+      if (!state.ollamaMode) setOllamaMode(true);
+    });
+
+    el('ollama-refresh-btn')?.addEventListener('click', () => {
+      fetchOllamaModels(true);
+    });
+
+    el('ollama-model-select')?.addEventListener('change', (e) => {
+      state.ollamaModel = e.target.value || null;
+    });
+
+    // Restore persisted mode preference on page load
+    try {
+      if (localStorage.getItem('sh_ollama_mode') === '1') {
+        setOllamaMode(true);
+      }
+    } catch { /* ignore — storage may be unavailable */ }
+    // ────────────────────────────────────────────────────────────────
 
     loadSessions();
   };

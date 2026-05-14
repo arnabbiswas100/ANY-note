@@ -99,7 +99,7 @@
   flex-direction: column;
   gap: var(--sp-1);
   width: 100%;
-  max-width: 760px;
+  max-width: 90%;
   margin: 0 auto;
   padding: 0 var(--sp-6);
 }
@@ -143,7 +143,7 @@
 }
 
 .message-bubble {
-  max-width: 72%;
+  max-width: 90%;
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
@@ -164,11 +164,128 @@
   border-radius: 4px var(--r-lg) var(--r-lg) var(--r-lg);
 }
 
+/* Enhanced AI bubble with permanent borders */
+.message.ai .message-bubble {
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  overflow: hidden;
+  transition: border-color var(--t-base), box-shadow var(--t-base);
+}
+
+.message.ai .message-bubble:hover {
+  border-color: var(--border-2);
+}
+
+.message.ai .message-content {
+  background: transparent;
+  border: none;
+  padding: var(--sp-4);
+}
+
 .message.user .message-content {
   background: var(--accent);
   color: var(--primary-fg);
   border-radius: var(--r-lg) 4px var(--r-lg) var(--r-lg);
 }
+
+/* ── Split Layout (Desktop Only) ────────────────────────────── */
+@media (min-width: 1024px) {
+  .message.ai.split-mode {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    gap: var(--sp-2);
+  }
+
+  .message.ai.split-mode .message-avatar {
+    align-self: flex-start;
+    margin-left: var(--sp-6);
+  }
+
+  .message.ai.split-mode .message-bubble {
+    max-width: 100%;
+    width: calc(100% - var(--sp-12));
+    margin: 0 var(--sp-6);
+    flex-direction: row;
+    gap: 0;
+    min-height: 200px;
+  }
+
+  .split-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: var(--sp-4);
+    min-width: 0; /* flex child fix */
+  }
+
+  .split-left {
+    border-right: 1px solid var(--border);
+    background: var(--bg-3);
+  }
+
+  .split-right {
+    background: var(--bg-2);
+  }
+
+  .split-label {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+    margin-bottom: var(--sp-3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .split-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    opacity: 0.5;
+  }
+}
+
+/* ── Streaming Waiting Animation ────────────────────────────── */
+.waiting-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--sp-4);
+  text-align: center;
+  padding: var(--sp-8);
+}
+
+.waiting-text {
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 1.1;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, var(--text-3), var(--text), var(--text-3));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: waitingGradient 3s linear infinite;
+}
+
+@keyframes waitingGradient {
+  to { background-position: 200% center; }
+}
+
+.waiting-sub {
+  font-size: 12px;
+  color: var(--text-3);
+  letter-spacing: 0.05em;
+}
+
+/* ───────────────────────────────────────────────────────────── */
 
 .message-time {
   font-size: 11px;
@@ -334,6 +451,28 @@
 .chat-send-btn:disabled {
   opacity: .35;
   cursor: not-allowed;
+}
+
+[data-theme="glass-dark"] .chat-send-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  backdrop-filter: blur(8px);
+}
+[data-theme="glass-dark"] .chat-send-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(255,255,255,0.05);
+}
+
+[data-theme="glass-light"] .chat-send-btn {
+  background: rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  color: var(--text);
+  backdrop-filter: blur(8px);
+}
+[data-theme="glass-light"] .chat-send-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 /* ── Attach Menu ────────────────────────────────────────────── */
@@ -552,4 +691,464 @@
     font-size: 12px;
     padding: 6px 28px 6px 30px;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OLLAMA / MODE TOGGLE — header bar above chat input
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Mode header row ────────────────────────────────────────── */
+.chat-mode-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0 var(--sp-1);
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Toggle pill group ──────────────────────────────────────── */
+.chat-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.mode-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 11px;
+  border-radius: var(--r-full);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  font-family: var(--font-body);
+  color: var(--text-3);
+  transition:
+    background var(--t-fast),
+    color var(--t-fast),
+    box-shadow var(--t-fast);
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+.mode-pill:hover:not(.active) {
+  color: var(--text-2);
+  background: var(--bg-hover);
+}
+
+.mode-pill.active {
+  background: var(--accent);
+  color: var(--primary-fg);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Coloured indicator dot inside pill */
+.mode-pill-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+  flex-shrink: 0;
+  transition: opacity var(--t-fast);
+}
+
+.mode-pill.active .mode-pill-dot {
+  opacity: 1;
+  background: var(--primary-fg);
+}
+
+/* Glass themes: subtle glow on active pill */
+[data-theme="glass-dark"] .mode-pill.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text);
+  box-shadow: 0 0 10px rgba(255,255,255,0.05), var(--shadow-xs);
+}
+
+[data-theme="glass-light"] .mode-pill.active {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--text);
+  box-shadow: 0 0 10px rgba(0,0,0,0.05), var(--shadow-xs);
+}
+
+[data-theme="glass-dark"] .chat-mode-toggle {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.10);
+  backdrop-filter: blur(6px);
+}
+
+[data-theme="glass-light"] .chat-mode-toggle {
+  background: rgba(255,255,255,0.38);
+  border-color: rgba(0,0,0,0.08);
+  backdrop-filter: blur(6px);
+}
+
+/* ── Ollama model selector (inline, appears next to toggle) ─── */
+.ollama-model-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  animation: fadeIn 200ms cubic-bezier(.4,0,.2,1) both;
+  min-width: 0;
+  flex: 1;
+}
+
+.ollama-model-wrap.hidden { display: none; }
+
+.ollama-sep {
+  color: var(--text-3);
+  font-size: 14px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.ollama-model-select {
+  flex: 1;
+  min-width: 0;
+  max-width: 320px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  padding: 5px 12px;
+  font-size: 12px;
+  font-family: var(--font-body);
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color var(--t-fast),
+    box-shadow var(--t-fast),
+    background var(--t-fast);
+  /* truncate long model names */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.ollama-model-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.ollama-model-select:disabled {
+  color: var(--text-3);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.ollama-model-select option {
+  background: var(--bg-2);
+  color: var(--text);
+}
+
+/* Glass model select */
+[data-theme="glass-dark"] .ollama-model-select {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.10);
+}
+
+[data-theme="glass-light"] .ollama-model-select {
+  background: rgba(255,255,255,0.40);
+  border-color: rgba(0,0,0,0.08);
+}
+
+/* ── Refresh button ─────────────────────────────────────────── */
+.ollama-refresh-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-full);
+  font-size: 13px;
+  color: var(--text-3);
+  flex-shrink: 0;
+  transition:
+    color var(--t-fast),
+    background var(--t-fast),
+    transform 400ms ease;
+}
+
+.ollama-refresh-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.ollama-refresh-btn.spinning {
+  animation: ollamaSpinOnce 550ms linear;
+}
+
+@keyframes ollamaSpinOnce {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Status dot (online / offline indicator) ────────────────── */
+.ollama-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+  flex-shrink: 0;
+  transition: background var(--t-base);
+}
+
+.ollama-status-dot.online  { background: var(--success); }
+.ollama-status-dot.offline { background: var(--danger);  }
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .chat-mode-header {
+    gap: var(--sp-1);
+  }
+
+  .mode-pill {
+    padding: 3px 9px;
+    font-size: 11px;
+  }
+
+  .ollama-model-select {
+    max-width: 180px;
+    font-size: 11.5px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STREAMING & THINKING BLOCK (Ollama)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Blinking cursor during streaming */
+.stream-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1em;
+  background-color: var(--accent);
+  vertical-align: middle;
+  margin-left: 2px;
+  animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* Streaming wrap margin */
+.streaming-wrap .ai-bubble {
+  border-top-left-radius: var(--r-md);
+  border-bottom-left-radius: var(--r-md);
+}
+
+/* Thinking block container */
+.think-block {
+  margin-bottom: var(--sp-2);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  overflow: hidden;
+  transition: all var(--t-base);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.think-block.hidden {
+  display: none;
+}
+
+/* Toggle button */
+.think-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-4);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.think-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.think-toggle-icon {
+  font-size: 14px;
+  width: 16px;
+  text-align: center;
+  transition: transform var(--t-base);
+}
+
+.think-toggle-label {
+  flex: 1;
+}
+
+/* Thinking body (the expandable content) */
+.think-body {
+  max-height: 5000px; /* arbitrary large max-height for CSS transition */
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  opacity: 1;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+}
+
+.think-body--collapsed {
+  max-height: 0;
+  opacity: 0;
+  border-top-color: transparent;
+}
+
+.think-content {
+  padding: var(--sp-3) var(--sp-4);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-3);
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Glass theme adjustments */
+[data-theme="glass-dark"] .think-block {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="glass-light"] .think-block {
+  background: rgba(255, 255, 255, 0.4);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="glass-dark"] .think-body {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="glass-light"] .think-body {
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="glass-dark"] .think-body--collapsed,
+[data-theme="glass-light"] .think-body--collapsed {
+  border-top-color: transparent;
+}
+
+/* Connecting text animation */
+.connecting-text {
+  font-style: italic;
+  color: var(--text-3);
+  animation: pulse-connect 1.5s infinite;
+}
+
+@keyframes pulse-connect {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ── Glass Theme AI Bubbles ─────────────────────────────────── */
+[data-theme="glass-dark"] .message.ai .message-bubble {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+}
+[data-theme="glass-dark"] .message.ai .message-bubble:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+[data-theme="glass-dark"] .split-left {
+  background: rgba(0, 0, 0, 0.3);
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="glass-dark"] .split-right {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="glass-light"] .message.ai .message-bubble {
+  background: rgba(255, 255, 255, 0.4);
+  border-color: rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(12px);
+}
+[data-theme="glass-light"] .message.ai .message-bubble:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+[data-theme="glass-light"] .split-left {
+  background: rgba(255, 255, 255, 0.5);
+  border-right-color: rgba(0, 0, 0, 0.06);
+}
+[data-theme="glass-light"] .split-right {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── User Message Glass Theme ───────────────────────────────── */
+[data-theme="glass-dark"] .message.user .message-content {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  backdrop-filter: blur(8px);
+}
+[data-theme="glass-light"] .message.user .message-content {
+  background: rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  color: var(--text);
+  backdrop-filter: blur(8px);
+}
+
+/* ── Add to Notes Button ────────────────────────────────────── */
+.add-to-notes-wrap {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 var(--sp-4) var(--sp-3) var(--sp-4);
+}
+.add-to-notes-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+.add-to-notes-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border-2);
+}
+.add-to-notes-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.add-to-notes-btn i { font-size: 12px; }
+
+[data-theme="glass-dark"] .add-to-notes-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+}
+[data-theme="glass-dark"] .add-to-notes-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+}
+[data-theme="glass-light"] .add-to-notes-btn {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(4px);
+}
+[data-theme="glass-light"] .add-to-notes-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.08);
 }

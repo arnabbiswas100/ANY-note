@@ -65,6 +65,12 @@ router.get('/chat/sessions/:id/messages', authenticate, chatController.getMessag
 router.post('/chat/sessions/:sessionId/messages', authenticate, chatController.sendMessage);
 
 // =============================================
+// OLLAMA (local LLM) ROUTES
+// =============================================
+router.get('/ollama/models', authenticate, chatController.listOllamaModels);
+router.post('/ollama/stream/:sessionId', authenticate, chatController.streamOllamaResponse);
+
+// =============================================
 // HEALTH CHECK
 // =============================================
 router.get('/health', (req, res) => {

@@ -1,5 +1,6 @@
 const { query } = require('../config/database');
 const llmService = require('../services/llmService');
+const { chatOllama, getOllamaModels, streamOllama } = llmService;
 
 // ── SESSIONS ──────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,8 @@ const sendMessage = async (req, res, next) => {
       content,
       context_note_ids,
       context_pdf_ids,
+      ollama_mode,   // boolean — true when frontend is in Ollama mode
+      ollama_model,  // string  — e.g. "qwen3.6:27b"
       // legacy fallback fields (kept for backwards compat)
       contextType,
       contextRefId,
@@ -134,13 +137,18 @@ const sendMessage = async (req, res, next) => {
       [sessionId]
     );
 
-    // Call LLM
+    // Call LLM — route to local Ollama or OpenRouter depending on request flag
     let aiResponse;
     try {
-      aiResponse = await llmService.chat(history.rows, context, req.user);
+      if (ollama_mode && ollama_model) {
+        console.log(`[Chat] Ollama mode — model: ${ollama_model}`);
+        aiResponse = await chatOllama(history.rows, context, req.user, ollama_model);
+      } else {
+        aiResponse = await llmService.chat(history.rows, context, req.user);
+      }
     } catch (llmErr) {
       console.error('LLM error:', llmErr.message);
-      aiResponse = `I encountered an error connecting to the AI service: ${llmErr.message}. Please check your GEMINI_API_KEY configuration.`;
+      aiResponse = `I encountered an error connecting to the AI service: ${llmErr.message}.`;
     }
 
     // Check if AI wants to create a note (only when explicit [[CREATE_NOTE]] tags are used)
@@ -178,46 +186,7 @@ const sendMessage = async (req, res, next) => {
       [sessionId, req.user.id, aiResponse]
     );
 
-    // ── Per-session note accumulation ────────────────────────────
-    // All Q&A in the same session goes into ONE note, appended sequentially.
-    try {
-      const sessionRow = session.rows[0];
-      const qaPair = `**Q: ${content.trim()}**\n\n${aiResponse}\n\n---\n`;
-
-      if (sessionRow.linked_note_id) {
-        // Append to existing note
-        const existingNote = await query(
-          'SELECT content FROM notes WHERE id=$1 AND user_id=$2',
-          [sessionRow.linked_note_id, req.user.id]
-        );
-        if (existingNote.rows.length) {
-          const newContent = existingNote.rows[0].content + '\n' + qaPair;
-          await query(
-            'UPDATE notes SET content=$1, updated_at=NOW() WHERE id=$2',
-            [newContent, sessionRow.linked_note_id]
-          );
-        }
-      } else {
-        // First message in session — create a new note
-        const noteTitle = sessionRow.title !== 'New Chat'
-          ? sessionRow.title
-          : content.trim().slice(0, 60) + (content.length > 60 ? '…' : '');
-        const newNote = await query(
-          'INSERT INTO notes (user_id, title, content) VALUES ($1,$2,$3) RETURNING id',
-          [req.user.id, noteTitle, qaPair]
-        );
-        const noteId = newNote.rows[0].id;
-        // Link the note to the session
-        await query(
-          'UPDATE chat_sessions SET linked_note_id=$1 WHERE id=$2',
-          [noteId, sessionId]
-        );
-      }
-    } catch (noteErr) {
-      // Non-fatal — chat still works even if note save fails
-      console.warn('[Chat] Note save failed:', noteErr.message);
-    }
-    // ────────────────────────────────────────────────────────────
+    // ── Auto-note accumulation disabled per user request ─────────
 
     // Update session title if it's the first message
     if (session.rows[0].title === 'New Chat') {
@@ -441,4 +410,166 @@ const searchSessions = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getSessions, createSession, updateSession, deleteSession, getMessages, sendMessage, searchSessions };
+// ── Ollama Streaming ──────────────────────────────────────────────────────────
+
+/**
+ * POST /api/ollama/stream
+ * Streams an Ollama response as Server-Sent Events (SSE).
+ *
+ * Request body: same shape as sendMessage — content, context_note_ids,
+ *               context_pdf_ids, ollama_model, sessionId (in params).
+ *
+ * SSE event types sent to the client:
+ *   data: {"type":"token","content":"..."}   — each streamed token
+ *   data: {"type":"done","messageId":"..."}  — stream finished, DB saved
+ *   data: {"type":"error","error":"..."}     — unrecoverable error
+ */
+const streamOllamaResponse = async (req, res, next) => {
+  // ── SSE headers ────────────────────────────────────────────────
+  res.setHeader('Content-Type',  'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection',    'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // disable Nginx buffering if present
+  res.flushHeaders();
+
+  const sendEvent = (obj) => {
+    try { res.write(`data: ${JSON.stringify(obj)}\n\n`); } catch { /* client disconnected */ }
+  };
+
+  try {
+    const { sessionId } = req.params;
+    const {
+      content,
+      context_note_ids,
+      context_pdf_ids,
+      ollama_model,
+    } = req.body;
+
+    if (!content || !content.trim()) {
+      sendEvent({ type: 'error', error: 'Message content is required' });
+      return res.end();
+    }
+    if (!ollama_model) {
+      sendEvent({ type: 'error', error: 'No ollama_model specified' });
+      return res.end();
+    }
+
+    // Normalise IDs to arrays
+    const noteIds = Array.isArray(context_note_ids) ? context_note_ids
+      : (context_note_ids ? [context_note_ids] : []);
+    const pdfIds  = Array.isArray(context_pdf_ids)  ? context_pdf_ids
+      : (context_pdf_ids  ? [context_pdf_ids]  : []);
+
+    // Verify session ownership
+    const session = await query(
+      'SELECT * FROM chat_sessions WHERE id=$1 AND user_id=$2',
+      [sessionId, req.user.id]
+    );
+    if (!session.rows.length) {
+      sendEvent({ type: 'error', error: 'Session not found' });
+      return res.end();
+    }
+
+    // Persist the user message first
+    const savedContextType  = noteIds.length ? 'note' : (pdfIds.length ? 'pdf' : null);
+    const savedContextRefId = noteIds[0] || pdfIds[0] || null;
+    const userMsg = await query(
+      `INSERT INTO chat_messages (session_id, user_id, role, content, context_type, context_ref_id)
+       VALUES ($1,$2,'user',$3,$4,$5) RETURNING *`,
+      [sessionId, req.user.id, content.trim(), savedContextType, savedContextRefId]
+    );
+
+    // Build context and history
+    const context = await buildContext(req.user.id, content, noteIds, pdfIds);
+    const history = await query(
+      `SELECT role, content FROM chat_messages
+       WHERE session_id=$1 ORDER BY created_at ASC LIMIT 20`,
+      [sessionId]
+    );
+
+    // ── Stream tokens from Ollama ───────────────────────────────
+    let fullResponse = '';
+    let streamErr    = null;
+
+    try {
+      for await (const chunk of streamOllama(history.rows, context, req.user, ollama_model)) {
+        if (chunk.type === 'token') {
+          fullResponse += chunk.content;
+          sendEvent({ type: 'token', content: chunk.content });
+        } else if (chunk.type === 'done') {
+          break;
+        }
+      }
+    } catch (err) {
+      streamErr = err;
+      console.error('[Stream] Ollama stream error:', err.message);
+      sendEvent({ type: 'error', error: err.message });
+      return res.end();
+    }
+
+    if (!fullResponse) fullResponse = '(empty response from model)';
+
+    // ── Post-processing: handle [[CREATE_NOTE]] tags ────────────
+    if (fullResponse.includes('[[CREATE_NOTE]]')) {
+      const noteMatch = fullResponse.match(/\[\[CREATE_NOTE\]\]([\s\S]*?)\[\[\/CREATE_NOTE\]\]/);
+      if (noteMatch) {
+        const noteContent = noteMatch[1].trim();
+        const titleMatch  = noteContent.match(/^#\s+(.+)/m);
+        const noteTitle   = titleMatch ? titleMatch[1] : 'AI Generated Note';
+        try {
+          await query(
+            'INSERT INTO notes (user_id, title, content, color) VALUES ($1,$2,$3,$4)',
+            [req.user.id, noteTitle, noteContent, '#1a2035']
+          );
+        } catch (e) { console.error('Failed to save AI note:', e.message); }
+        const stripped = fullResponse.replace(/\[\[CREATE_NOTE\]\][\s\S]*?\[\[\/CREATE_NOTE\]\]/, '').trim();
+        fullResponse = (stripped || noteContent) + '\n\n✅ **Note saved to your Notes library!**';
+      }
+    }
+
+    // ── Save assistant message to DB ────────────────────────────
+    const assistantMsg = await query(
+      `INSERT INTO chat_messages (session_id, user_id, role, content)
+       VALUES ($1,$2,'assistant',$3) RETURNING *`,
+      [sessionId, req.user.id, fullResponse]
+    );
+
+    // ── Auto-note accumulation disabled per user request ─────────
+
+    // ── Auto-title session ──────────────────────────────────────
+    if (session.rows[0].title === 'New Chat') {
+      const autoTitle = content.trim().slice(0, 60) + (content.length > 60 ? '...' : '');
+      await query('UPDATE chat_sessions SET title=$1 WHERE id=$2', [autoTitle, sessionId]);
+    }
+
+    // ── Signal completion with saved message ID ─────────────────
+    sendEvent({ type: 'done', messageId: assistantMsg.rows[0].id });
+    res.end();
+
+  } catch (err) {
+    console.error('[Stream] Fatal error:', err.message);
+    sendEvent({ type: 'error', error: err.message });
+    res.end();
+  }
+};
+
+// ── Ollama Models ─────────────────────────────────────────────────────────────
+
+const listOllamaModels = async (req, res, next) => {
+  try {
+    const models = await getOllamaModels();
+    res.json({ success: true, models });
+  } catch (err) {
+    // 503 — Ollama may simply not be running; non-fatal for the app
+    res.status(503).json({
+      success: false,
+      error: err.message || 'Could not reach Ollama. Make sure it is running on localhost:11434.',
+    });
+  }
+};
+
+module.exports = {
+  getSessions, createSession, updateSession, deleteSession,
+  getMessages, sendMessage, searchSessions,
+  listOllamaModels, streamOllamaResponse,
+};
